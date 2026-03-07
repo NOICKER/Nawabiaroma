@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import { HttpError } from '../middleware/errorHandler.js';
+import { logger, serializeError } from './logger.js';
 import { sendOrderConfirmationEmail } from './emailService.js';
 import { parseCartSnapshotMetadata, parseShippingAddressMetadata } from './checkoutService.js';
 import { withTransaction } from '../server/config/database.js';
@@ -123,7 +124,12 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
                 totalAmount: fulfillment.totalAmount,
             });
         } catch (error) {
-            console.error('Failed to send order confirmation email.', error);
+            logger.error({
+                event_type: 'order_confirmation_email_failed',
+                outcome: 'failure',
+                order_reference: fulfillment.orderReference,
+                ...serializeError(error),
+            });
         }
     }
 

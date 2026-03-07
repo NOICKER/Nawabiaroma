@@ -60,7 +60,7 @@ export async function getPageBySlug(slug: string): Promise<CMSPage> {
     );
 
     if (result.rowCount === 0) {
-        throw new HttpError(404, `Page "${slug}" was not found.`);
+        throw new HttpError(404, 'Page not found.');
     }
 
     const row = result.rows[0];

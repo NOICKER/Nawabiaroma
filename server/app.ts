@@ -14,14 +14,21 @@ import { env } from './config/env.js';
 
 export function createApp() {
     const app = express();
+    const configuredCorsOrigins = env.CORS_ORIGIN
+        ? env.CORS_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean)
+        : [];
 
     app.disable('x-powered-by');
 
     app.use(helmet());
 
+    if (env.NODE_ENV === 'production' && configuredCorsOrigins.length === 0) {
+        throw new Error('CORS_ORIGIN must be configured explicitly in production.');
+    }
+
     app.use(
         cors({
-            origin: env.CORS_ORIGIN ? env.CORS_ORIGIN.split(',').map((value) => value.trim()) : true,
+            origin: configuredCorsOrigins.length > 0 ? configuredCorsOrigins : true,
             credentials: true,
         }),
     );
