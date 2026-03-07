@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nawabi Aroma - The Collection</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#1289a1",
+              "background-light": "#F9FAFB", // Cool Gray 50
+              "background-dark": "#111e21",
+              "glass-surface": "rgba(255, 255, 255, 0.65)",
+              "glass-border": "rgba(255, 255, 255, 0.4)",
+              "text-main": "#111718",
+              "text-muted": "#888888",
+            },
+            fontFamily: {
+              "display": ["Space Grotesk", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "mono": ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+              "DEFAULT": "0.5rem",
+              "lg": "1rem",
+              "xl": "1.5rem",
+              "2xl": "2rem",
+              "full": "9999px"
+            },
+            backdropBlur: {
+              xs: '2px',
+            },
+            boxShadow: {
+              'glass': '0 4px 30px rgba(0, 0, 0, 0.03), inset 0 0 0 1px rgba(255, 255, 255, 0.6)',
+              'glass-hover': '0 20px 40px -10px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.8)',
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Custom Scrollbar hide */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Smooth fade for hover effects */
+        .glass-card {
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        
+        /* Subtle texture for background */
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-main font-body antialiased min-h-screen relative overflow-x-hidden selection:bg-primary/20 selection:text-primary">
+<!-- Background Noise Texture -->
+<div class="fixed inset-0 pointer-events-none z-0 bg-noise mix-blend-multiply opacity-50"></div>
+<!-- Sticky Navigation -->
+<nav class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<div class="bg-glass-surface/80 dark:bg-black/20 backdrop-blur-xl border border-white/20 shadow-glass rounded-full px-8 py-3 flex items-center gap-12 max-w-3xl w-full justify-between transition-all duration-300">
+<!-- Left Links -->
+<div class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Shop</a>
+<a class="text-sm font-medium hover:text-primary transition-colors text-text-muted" href="#">About</a>
+</div>
+<!-- Logo -->
+<a class="font-display font-bold text-xl tracking-tighter hover:opacity-80 transition-opacity" href="#">
+                NAWABI
+            </a>
+<!-- Right Links -->
+<div class="flex items-center gap-8">
+<a class="hidden md:block text-sm font-medium hover:text-primary transition-colors text-text-muted" href="#">Journal</a>
+<button class="flex items-center gap-2 text-sm font-medium group">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">shopping_bag</span>
+<span class="font-mono text-xs translate-y-[1px] group-hover:text-primary transition-colors">(0)</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="relative z-10 pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto flex flex-col items-center">
+<!-- Page Header -->
+<header class="text-center mb-16 md:mb-24 opacity-0 animate-[fadeIn_1s_ease-out_forwards]">
+<h1 class="font-display text-5xl md:text-7xl lg:text-8xl font-light tracking-tight text-text-main mb-4">
+                THE COLLECTION
+            </h1>
+<p class="font-light text-text-muted text-lg max-w-lg mx-auto">
+                Olfactory architecture. Scents designed to be felt, not just smelled.
+            </p>
+</header>
+<!-- Filter Bar -->
+<div class="sticky top-28 z-40 mb-16 w-full flex justify-center opacity-0 animate-[fadeIn_1s_ease-out_0.2s_forwards]">
+<div class="bg-white/30 backdrop-blur-md border border-white/40 rounded-full px-2 py-2 md:px-6 md:py-3 shadow-sm inline-flex">
+<div class="flex items-center gap-6 overflow-x-auto no-scrollbar px-4">
+<button class="whitespace-nowrap text-sm font-medium text-primary relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-primary transition-colors">
+                        All Scents
+                    </button>
+<button class="whitespace-nowrap text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+                        Woody
+                    </button>
+<button class="whitespace-nowrap text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+                        Floral
+                    </button>
+<button class="whitespace-nowrap text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+                        Fresh
+                    </button>
+<button class="whitespace-nowrap text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+                        Oriental
+                    </button>
+<button class="whitespace-nowrap text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+                        Citrus
+                    </button>
+</div>
+</div>
+</div>
+<!-- Product Grid (Asymmetrical Masonry) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+<!-- Column 1 -->
+<div class="flex flex-col gap-8 md:mt-0">
+<!-- Product Card 1 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.3s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<!-- Abstract Bottle Representation -->
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-tr from-gray-100 to-white opacity-50 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Minimalist glass perfume bottle with santal label on white background" class="h-[70%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Minimalist glass perfume bottle with santal label on white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7d_skVqwlzVu88d1Eeu9eFCQHX6Lm-tPUm08DEEus5Jz2qTHP4LYTPD1PQEwPtf6op7wPldFsx-JXKvX96Gi2KTSVu-zjnqYzOI_nq-FHN-9rE-XgZ7ziVYsu1FqSPD4Yc0ZCjhNU39KtWNRQPduiVng5j62DS1HanE2p9o5zOTbFnBmi4W5ierod4lcY14pes2Ds7Azrdcyx8jKXVBtEyt5mUbi6TsFOhQkfEpaqof-zUGhji2v77-kxd9CQgvMTIE3dXNiM0Bw"/>
+</div>
+</div>
+<!-- Label Info -->
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">SANTAL 01</h3>
+<p class="font-mono text-xs text-text-muted">EAU DE PARFUM</p>
+</div>
+<span class="font-mono text-sm font-medium">₹8,500</span>
+</div>
+<!-- Quick View Overlay -->
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.4s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-bl from-rose-50 to-white opacity-60 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Clear glass perfume bottle with pink liquid casting a soft shadow" class="h-[65%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Clear glass perfume bottle with pink liquid casting a soft shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_ENe7uWp_p-50HA55M91KBx2USMgeuZcESr9rfs9RgSQOKmchup4zpaHTpywwAoFacZeUrhb-2py_fDHoo0qwe2ar36ENkVAJ17wwelusaUICra_jqCpDZC5Cr5QrGYIq8ZtqIbrpO1GQ9sokqh3fswkF2fzrFaKYnW1tmwBF2Uieolt5bA3rZ4zZ0Wu7dk2QdTjKUZL5QMuTwYn1KcIGBGojbC2DxsoKAnQcw4PYv0UakasWi63LfU45Sk9GEyxCu2uK72XGzyM"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">ROSE NOIR</h3>
+<p class="font-mono text-xs text-text-muted">EXTRAIT DE PARFUM</p>
+</div>
+<span class="font-mono text-sm font-medium">₹9,200</span>
+</div>
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+</div>
+<!-- Column 2 (Offset) -->
+<div class="flex flex-col gap-8 md:mt-12">
+<!-- Product Card 3 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.5s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-t from-amber-50 to-transparent opacity-40 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Dark amber glass bottle with minimalist labeling on grey background" class="h-[75%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Dark amber glass bottle with minimalist labeling on grey background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9B5pVrXH--llft-ueFZvDOhbnZNaUR_PWy8jDUvJclj91n9Pe2qUKFnNq97nxDf-B3a3zuEnUd-s1xJbpr0ycorsTj2nX4MT5BBklwoj5jVs1g6ldwlp1mgyNYu-DeSXqkk3eLZmeH8jga_Wl8dYsrUCdUv_euvvUCc3I3aXoDsf4zZKJKf4chtC8v3QEefEZx_1OJP-mli8-lR4CcvJjnIkVd5VymvnN0RelPCQnBFC-apakcZzCT6gx5lnxyObmaUaa3LALBu8"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">OUD IMPERIAL</h3>
+<p class="font-mono text-xs text-text-muted">EAU DE PARFUM</p>
+</div>
+<span class="font-mono text-sm font-medium">₹12,000</span>
+</div>
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+<!-- Product Card 4 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.6s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-r from-emerald-50 to-white opacity-50 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Green tinted glass perfume bottle reflecting light" class="h-[68%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Green tinted glass perfume bottle reflecting light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkiqLKRUGdtFZPeoU_-7pnvdIXNh723Lo5HBzJcvwu0mx1UfDigTa0ElGSeUoigf9cI5QyIJe2zio21UiruplDe4wyiNLIerKIlMXwJKXvN1ps83X4XulP9HJOg77ZyYbH93Y02HuYszQ_9SIZ4ByFGbyrP61_mUbgvyBwTiNe7TRJ2fsH72Chnefzy07X8NX73lmO-1fxgMep5Bk4Oyp2hLCfHZbi4dxkW8kfoTNw-h5pompBLes8xNWbF0bELoxytLWj1miMUkc"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">VETIVER 44</h3>
+<p class="font-mono text-xs text-text-muted">COLOGNE</p>
+</div>
+<span class="font-mono text-sm font-medium">₹8,800</span>
+</div>
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+</div>
+<!-- Column 3 -->
+<div class="flex flex-col gap-8 md:mt-4 lg:mt-24">
+<!-- Product Card 5 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.7s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-tr from-orange-50 to-transparent opacity-50 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Golden liquid perfume in a rectangular glass bottle" class="h-[70%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Golden liquid perfume in a rectangular glass bottle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVre2q4xpS41hZCQY71JoFuKYVwDT4ZjnvyBJoB_VI8KLoZEXtCgpmjim_tcsCN8-anp1zwBFoIkdGUeYqE4F8p13h2J6tPCb5mHj-FYZmcXS1vc7XfaR2W3nQWwzKwYYiAq8tqUCURjdV0EKy4H3LjQ6yqt5M0xRGYO3OQ8K6_v8WxEJWGt_RAVpcRtZinp79aC8GibwDghE-77Vhd1ZJOqAOzsNeaQHjE_FEUz35uPNTkNErjAdxuxq0wbKemSw9C7s3eAlb--M"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">AMBER DUST</h3>
+<p class="font-mono text-xs text-text-muted">EAU DE TOILETTE</p>
+</div>
+<span class="font-mono text-sm font-medium">₹10,500</span>
+</div>
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+<!-- Product Card 6 -->
+<div class="group relative aspect-[3/4] glass-card rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 overflow-hidden cursor-pointer opacity-0 animate-[fadeInUp_0.8s_ease-out_0.8s_forwards]">
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="relative w-full h-full flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-b from-blue-50 to-white opacity-40 rounded-full blur-3xl transform group-hover:scale-110 transition-transform duration-700"></div>
+<img alt="Tall sleek perfume bottle with blue tint" class="h-[72%] object-contain mix-blend-multiply relative z-10 transition-transform duration-700 group-hover:scale-105" data-alt="Tall sleek perfume bottle with blue tint" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzSl0kZZnOAJ13PwKvHl1dIdWNOVyOJWPZGg2oSvt2rJyJFbYj3b0zBuV6H-8uilI9lKvxcokNLzAGWo3THWChfkDLs4agmpdXRRgQ3viOP4NNWINvKtlpaR-fNdVEh2cS7OUPThGtJEc-OxvGOq7oMTP97__1w3pMm4aN0ak4qWkR1Sut4V3guq7ufbbXDDZHxhIP7txJ5BimuFRRdI-DtX1dy2G9BEVFIo2wTKRLmhhlTsvzCMNyp-wohVYsyk4RtJDrCvNxhqE"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex justify-between items-end z-20">
+<div>
+<h3 class="font-display font-bold text-xl tracking-tight text-text-main mb-1">CEDAR SKY</h3>
+<p class="font-mono text-xs text-text-muted">EAU FRAICHE</p>
+</div>
+<span class="font-mono text-sm font-medium">₹7,900</span>
+</div>
+<div class="absolute inset-0 bg-white/10 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex items-end justify-center pb-20 pointer-events-none">
+<button class="bg-text-main text-white font-display font-medium text-sm px-6 py-3 rounded-full translate-y-4 group-hover:translate-y-0 transition-transform duration-500 shadow-lg pointer-events-auto hover:bg-primary">
+                            Quick View
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Simple decorative footer gradient -->
+<div class="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none z-20"></div>
+<!-- Animation Keyframes -->
+<style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</body></html>

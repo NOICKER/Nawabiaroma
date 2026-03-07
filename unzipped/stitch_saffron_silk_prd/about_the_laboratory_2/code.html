@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nawabi Aroma - The Laboratory</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400&amp;family=Playfair+Display:ital,wght@1,400;1,500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1289a1",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#111e21",
+                        "glass-surface": "rgba(255, 255, 255, 0.65)",
+                        "glass-border": "rgba(0, 0, 0, 0.08)",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                        "serif": ["Playfair Display", "serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px" },
+                    backdropBlur: {
+                        'xs': '2px',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Selection color */
+        ::selection {
+            background-color: #1289a1;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-[#111718] font-body selection:bg-primary/20">
+<!-- Sticky Glass Navigation -->
+<nav class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+<div class="pointer-events-auto backdrop-blur-md bg-glass-surface/80 border border-glass-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] rounded-full px-8 py-3 flex items-center gap-12 max-w-3xl w-auto transition-all duration-300 hover:bg-white/90">
+<!-- Left Links -->
+<div class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors duration-300" href="#">Shop</a>
+<a class="text-sm font-medium text-primary transition-colors duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-primary" href="#">About</a>
+</div>
+<!-- Logo -->
+<a class="font-display font-bold text-xl tracking-tight text-[#111718]" href="#">NAWABI</a>
+<!-- Right Links & Cart -->
+<div class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors duration-300" href="#">Journal</a>
+<button class="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">shopping_bag</span>
+<span>(0)</span>
+</button>
+</div>
+<!-- Mobile Menu Icon (Visible only on small screens) -->
+<button class="md:hidden text-[#111718]">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="pt-32 pb-24 px-6 md:px-0">
+<!-- Article Container -->
+<article class="max-w-[680px] mx-auto flex flex-col gap-16">
+<!-- Hero Header -->
+<header class="text-center flex flex-col items-center gap-6 animate-fade-in-up">
+<div class="h-16 w-px bg-gradient-to-b from-transparent via-[#111718]/20 to-[#111718]/20 mb-4"></div>
+<h1 class="font-display font-light text-5xl md:text-7xl leading-[0.9] tracking-tight text-[#111718]">
+                    WE BOTTLE <br/> <span class="font-normal italic font-serif text-primary/90">MEMORIES.</span>
+</h1>
+<p class="font-body font-light text-lg md:text-xl leading-relaxed text-[#111718]/70 mt-4 max-w-md">
+                    In a world of noise, we seek the quiet resonance of pure scent. Stripping away the ornate to reveal the essential architecture of smell.
+                </p>
+</header>
+<!-- Image Block 1: Laboratory Distillation -->
+<figure class="group relative overflow-hidden rounded-lg">
+<div class="aspect-[16/9] w-full bg-gray-100 relative overflow-hidden">
+<img alt="Macro photography of chemical glassware with clear liquid being distilled in a laboratory setting" class="w-full h-full object-cover grayscale contrast-125 transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0 mix-blend-multiply opacity-90" data-alt="Macro photography of chemical glassware with clear liquid being distilled in a laboratory setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCARTj7CBfefXOM6spdqqhiAqFOj_jBTtHByJ9mkwJVckGSenIQ4GqR0BxmIgjGSUvgqJPoz0IXkAMf11pBshz-BK2SkGQQw27-oByw9OvQQg0795fjF7FM2L8vwSd0OBZpQNiXo7FhSMogH-bOFr1Ir3rwAA6gTCXaBO2po-iysf_Q0o1FOT6kmsd_EZa-P-ZTwP4IazFgEH_mRbA2NSFCvmCo4iE_VmlSIg7e0CVcoqKCdNYMgAAIAlUyPRIXv4zuym7SmlolTEo"/>
+<!-- Glass overlay for effect -->
+<div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none"></div>
+</div>
+<figcaption class="mt-3 font-mono text-xs text-[#888888] flex items-center gap-2">
+<span class="inline-block w-2 h-2 rounded-full bg-primary/40"></span>
+                    FIG 01. — MOLECULAR DISTILLATION PROCESS
+                </figcaption>
+</figure>
+<!-- Editorial Text Block 1 -->
+<div class="prose prose-lg prose-neutral font-light text-[#111718]/80 leading-relaxed">
+<p class="first-letter:text-5xl first-letter:font-display first-letter:font-medium first-letter:text-primary first-letter:float-left first-letter:mr-3 first-letter:mt-[-4px]">
+                    Traditional luxury perfume is often a mask—a heavy velvet curtain of gold filigree and aggressive branding designed to obscure the reality of the ingredients. At Nawabi, we believe in transparency. Not just as an ethical standard, but as an aesthetic principle.
+                </p>
+<p class="mt-6">
+                    Our laboratory is a sanctuary of subtraction. We start with the chaotic complexity of nature—rare oud from Assam, vetiver from Haiti, rose from Grasse—and we meticulously refine it. We remove the impurities, the noise, the olfactory clutter, until only the ghost of the scent remains. It is an act of architectural restoration.
+                </p>
+</div>
+<!-- Pull Quote -->
+<blockquote class="my-8 relative">
+<div class="absolute -top-8 -left-8 text-9xl leading-none text-primary/10 font-serif select-none">“</div>
+<p class="font-serif italic text-3xl md:text-4xl text-center leading-tight text-[#111718] relative z-10 px-8">
+                    Perfume is the ghost of a flower, caught in a glass cage.
+                </p>
+<footer class="mt-4 text-center font-mono text-xs text-[#888888] tracking-widest uppercase">— The Alchemist's Journal, Vol. IV</footer>
+</blockquote>
+<!-- Image Block 2: Raw Ingredients -->
+<figure class="group relative overflow-hidden rounded-lg">
+<div class="aspect-[4/5] md:aspect-[21/9] w-full bg-gray-100 relative overflow-hidden">
+<img alt="Close up texture of dried botanical ingredients and wood bark in monochrome" class="w-full h-full object-cover grayscale contrast-125 transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0 mix-blend-multiply opacity-90" data-alt="Close up texture of dried botanical ingredients and wood bark in monochrome" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9ZA7KhQ3T4k7CxbTBjsNpvZISAKeNc6TerGXHg98XV-41MQfIx3lDVwArDTw0TeXtecdZ9-Znul_A_lmLnIGpfgcqcFjKa6w8wahtMQzAL85F8KkSF1J6OWc6iqKArX7Wl8YySJP8EMut1yr8v-f1BMlP2y7uz6G8As98DqPEGDMdJAhNA5gxC2lTplApK_kHO3t-_eQBkSnqd4o9KOfISMrqTMNyoQwywZ9_OuTPkniQdjEeeJN6w3uXLo_EW0yJG6B673kCYc0"/>
+</div>
+<figcaption class="mt-3 font-mono text-xs text-[#888888] flex items-center gap-2 justify-end">
+                    FIG 02. — RAW MATERIAL EXTRACTION
+                    <span class="inline-block w-2 h-2 rounded-full bg-primary/40"></span>
+</figcaption>
+</figure>
+<!-- Editorial Text Block 2 -->
+<div class="prose prose-lg prose-neutral font-light text-[#111718]/80 leading-relaxed">
+<p>
+                    We do not create scents to overpower a room. We create atmospheres that linger on the skin like a memory. Each bottle is a study in tension between the synthetic and the natural, the scientific and the soulful. 
+                </p>
+<p class="mt-6">
+                    Using advanced molecular extraction techniques, we isolate specific aromatic compounds that give an ingredient its character, discarding the rest. This allows for fragrances that are startlingly clear, linear, and modern. It is scent without the weight.
+                </p>
+</div>
+<!-- Signature / Footer of Article -->
+<div class="mt-12 flex flex-col items-center gap-6">
+<div class="w-12 h-px bg-[#111718]/20"></div>
+<!-- SVG Signature -->
+<div class="text-[#111718] w-48 opacity-80" data-alt="Handwritten signature of the perfumer">
+<svg fill="none" viewbox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 50 C 20 40, 40 20, 50 30 C 60 40, 50 60, 40 60 C 30 60, 40 40, 60 35 C 80 30, 90 60, 80 65 C 70 70, 100 40, 110 40 C 120 40, 115 55, 125 50 C 135 45, 150 30, 160 35 C 170 40, 160 55, 180 50" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div class="text-center">
+<p class="font-display font-medium text-sm tracking-wide uppercase">Dr. A. K. Nawabi</p>
+<p class="font-mono text-xs text-[#888888] mt-1">Head Perfumer &amp; Founder</p>
+</div>
+</div>
+</article>
+</main>
+<!-- Footer Simple -->
+<footer class="border-t border-glass-border py-12">
+<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="font-display font-bold text-lg tracking-tight text-[#111718]">NAWABI</div>
+<div class="font-mono text-xs text-[#888888]">© 2024 NAWABI AROMA. ALL RIGHTS RESERVED.</div>
+</div>
+</footer>
+</body></html>

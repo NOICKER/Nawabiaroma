@@ -1,0 +1,56 @@
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
+import { CartProvider, useCart } from './context/CartContext';
+import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { Shop } from './pages/Shop';
+import { ProductDetail } from './pages/ProductDetail';
+import { Cart } from './pages/Cart';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
+function CartRoute() {
+  const navigate = useNavigate();
+  const { openCart } = useCart();
+
+  useEffect(() => {
+    openCart();
+    navigate('/shop', { replace: true });
+  }, [navigate, openCart]);
+
+  return null;
+}
+
+function App() {
+  return (
+    <CartProvider>
+      <Router>
+        <div className="min-h-screen bg-[var(--bg-color)] text-[var(--color-ink)] selection:bg-[var(--color-primary)]/20 selection:text-[var(--color-primary)] font-body transition-colors duration-300">
+          <ScrollToTop />
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<CartRoute />} />
+          </Routes>
+          <Footer />
+          <Cart />
+        </div>
+      </Router>
+    </CartProvider>
+  );
+}
+
+export default App;

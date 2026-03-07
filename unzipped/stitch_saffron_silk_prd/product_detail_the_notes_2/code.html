@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nawabi Aroma - Oud Imperial</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1289a1",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#111e21",
+                        "glass-border": "rgba(255, 255, 255, 0.4)",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 20px 40px -10px rgba(18, 137, 161, 0.05);
+        }
+
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#111718] font-body antialiased selection:bg-primary/20 selection:text-primary">
+<!-- Navigation (Reused & adapted from context) -->
+<nav class="fixed top-0 left-0 w-full z-50 transition-all duration-300">
+<div class="absolute inset-0 glass-panel border-b border-white/20"></div>
+<div class="relative max-w-[1920px] mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
+<!-- Logo -->
+<div class="flex items-center gap-3 group cursor-pointer">
+<span class="material-symbols-outlined text-primary text-2xl group-hover:rotate-180 transition-transform duration-700">change_history</span>
+<h1 class="font-display font-bold text-xl tracking-wide uppercase text-slate-900">Nawabi</h1>
+</div>
+<!-- Center Menu (Desktop) -->
+<div class="hidden md:flex items-center gap-12">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Shop</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">About</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Journal</a>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center gap-6">
+<button class="text-sm font-bold flex items-center gap-2 hover:text-primary transition-colors">
+<span class="hidden sm:inline">Search</span>
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<button class="relative flex items-center justify-center size-10 rounded-full hover:bg-black/5 transition-colors">
+<span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+<span class="absolute top-2 right-2 size-2 bg-primary rounded-full"></span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content: Split Layout -->
+<main class="relative flex flex-col lg:flex-row min-h-screen pt-20">
+<!-- Left Pane: Fixed Visual (50%) -->
+<section class="lg:w-1/2 lg:h-[calc(100vh-80px)] lg:sticky lg:top-20 relative overflow-hidden bg-[#e8ecec] group">
+<!-- Refractive Overlay Layers -->
+<div class="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent pointer-events-none z-10"></div>
+<!-- Main Product Image -->
+<div class="w-full h-[60vh] lg:h-full relative flex items-center justify-center p-12 lg:p-24">
+<!-- Abstract/Artistic Background shapes -->
+<div class="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl mix-blend-multiply filter"></div>
+<div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-slate-300/20 rounded-full blur-3xl mix-blend-multiply filter"></div>
+<img alt="Elegant glass perfume bottle with minimalist label sitting on a stone surface with dramatic lighting casting sharp shadows" class="relative z-20 h-full w-auto object-contain drop-shadow-2xl transform transition-transform duration-1000 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyib8HmT77W76QZ7nE5PAdbRSdpVRfjhl_RQTHhKTgYGlkfnssABxm16HsCX7qROeBxe6PdwEz_O1IxJ-Ws1RT4XRVxRNoJAHgM2Kh66cTJlkzZMiQMoSNMEjQm4o0PzdbWeGNaJP0pcVQ4WFnp0C2SnAAk2CC4lNacssulRhOXyzWutBEzZZE2rOEpxwAd50Fqk-zfDUe8ODZ2HNxlFnJQdicEbvPn69rx7VnA-vLXc4DWy0o4okpGYTl-z-Y2boI5RY4QJRDHZY"/>
+</div>
+<!-- Image Caption/Location -->
+<div class="absolute bottom-8 left-8 z-30 flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm">location_on</span>
+<span class="font-mono text-xs text-slate-500 uppercase tracking-wider">Grasse, France</span>
+</div>
+</section>
+<!-- Right Pane: Scrollable Content (50%) -->
+<section class="lg:w-1/2 min-h-screen bg-background-light dark:bg-background-dark px-6 py-12 lg:px-20 lg:py-24 flex flex-col">
+<div class="max-w-xl mx-auto w-full flex flex-col gap-12">
+<!-- Product Header -->
+<div class="flex flex-col gap-4 animate-fade-in-up">
+<div class="flex items-center gap-3">
+<span class="h-px w-8 bg-slate-300"></span>
+<span class="font-mono text-xs uppercase tracking-widest text-slate-500">Series 01 — Signature</span>
+</div>
+<h1 class="font-display text-5xl lg:text-7xl font-light text-slate-900 tracking-tight leading-[0.9]">
+                        OUD <br/> <span class="font-normal italic ml-4">IMPERIAL</span>
+</h1>
+<div class="flex items-baseline justify-between pt-2 border-b border-slate-200 pb-6">
+<span class="font-mono text-sm text-slate-600">100ML — EAU DE PARFUM</span>
+<span class="font-mono text-lg font-medium text-primary">₹12,000</span>
+</div>
+</div>
+<!-- Storytelling -->
+<div class="prose prose-lg text-slate-600 font-light leading-relaxed">
+<p>
+                        Smoked wood meets morning dew. An architectural study of resin and light. 
+                        Oud Imperial strips away the ornamental excess of traditional perfumery to reveal 
+                        the raw, vibrating core of Agarwood. 
+                    </p>
+<p class="mt-4 text-sm font-mono text-slate-400">
+                        Designed for the minimalist aesthete who values clarity over clamor.
+                    </p>
+</div>
+<!-- Olfactory Pyramid (Interactive Component) -->
+<div class="flex flex-col gap-6 py-8">
+<h3 class="font-display text-lg font-medium tracking-wide text-slate-900">OLFACTORY NOTES</h3>
+<div class="relative flex flex-col gap-1 w-full group/pyramid">
+<!-- Top Note (Thin) -->
+<div class="relative w-full group/note">
+<div class="absolute -left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity duration-300 text-xs font-mono text-primary whitespace-nowrap -translate-x-full pr-4">
+                                Top Notes — 15 mins
+                            </div>
+<div class="h-12 w-full glass-panel rounded-lg flex items-center px-6 transition-all duration-300 hover:bg-white/80 hover:scale-[1.01] hover:border-primary/30 cursor-crosshair">
+<div class="w-24 font-mono text-xs text-slate-400 uppercase tracking-wider">Top</div>
+<div class="flex gap-2 flex-wrap">
+<span class="text-sm font-medium text-slate-800">Italian Bergamot</span>
+<span class="text-sm text-slate-400">/</span>
+<span class="text-sm font-medium text-slate-800">Pink Pepper</span>
+</div>
+</div>
+</div>
+<!-- Heart Note (Medium) -->
+<div class="relative w-full group/note">
+<div class="absolute -left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity duration-300 text-xs font-mono text-primary whitespace-nowrap -translate-x-full pr-4">
+                                Heart Notes — 2-4 hours
+                            </div>
+<div class="h-16 w-full glass-panel rounded-lg flex items-center px-6 transition-all duration-300 hover:bg-white/80 hover:scale-[1.01] hover:border-primary/30 cursor-crosshair mt-1">
+<div class="w-24 font-mono text-xs text-slate-400 uppercase tracking-wider">Heart</div>
+<div class="flex gap-2 flex-wrap">
+<span class="text-sm font-medium text-slate-800">Kashmiri Saffron</span>
+<span class="text-sm text-slate-400">/</span>
+<span class="text-sm font-medium text-slate-800">White Amber</span>
+</div>
+</div>
+</div>
+<!-- Base Note (Thick) -->
+<div class="relative w-full group/note">
+<div class="absolute -left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity duration-300 text-xs font-mono text-primary whitespace-nowrap -translate-x-full pr-4">
+                                Base Notes — 6+ hours
+                            </div>
+<div class="h-24 w-full glass-panel rounded-lg flex items-center px-6 transition-all duration-300 hover:bg-white/80 hover:scale-[1.01] hover:border-primary/30 cursor-crosshair mt-1">
+<div class="w-24 font-mono text-xs text-slate-400 uppercase tracking-wider">Base</div>
+<div class="flex gap-2 flex-wrap items-center">
+<span class="text-sm font-medium text-slate-800">Aged Oud</span>
+<span class="text-sm text-slate-400">/</span>
+<span class="text-sm font-medium text-slate-800">Haitian Vetiver</span>
+<span class="text-sm text-slate-400">/</span>
+<span class="text-sm font-medium text-slate-800">Musk</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Accordion Details -->
+<div class="border-t border-slate-200">
+<details class="group py-4 cursor-pointer">
+<summary class="flex items-center justify-between font-display text-lg font-medium text-slate-900 list-none">
+<span>Ingredient Transparency</span>
+<span class="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="pt-4 text-sm text-slate-500 font-mono leading-relaxed">
+                            Alcohol Denat., Parfum (Fragrance), Aqua (Water), Limonene, Linalool, Citral, Geraniol. Sourced ethically from Grasse, France. Vegan &amp; Cruelty-free.
+                        </div>
+</details>
+<div class="border-t border-slate-200"></div>
+<details class="group py-4 cursor-pointer">
+<summary class="flex items-center justify-between font-display text-lg font-medium text-slate-900 list-none">
+<span>Shipping &amp; Returns</span>
+<span class="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="pt-4 text-sm text-slate-500 font-mono leading-relaxed">
+                            Complimentary standard shipping on all orders over ₹5,000. 
+                            Returns accepted within 14 days of delivery if the bottle is unopened.
+                        </div>
+</details>
+<div class="border-t border-slate-200"></div>
+</div>
+<!-- Sticky/Floating Action -->
+<div class="mt-auto pt-8 sticky bottom-6 z-20">
+<!-- Quantity & Add Wrapper -->
+<div class="glass-panel p-2 rounded-xl flex gap-2 shadow-2xl backdrop-blur-xl">
+<!-- Quantity Stepper -->
+<div class="flex items-center justify-between bg-white/50 rounded-lg px-3 w-32 border border-slate-100">
+<button class="text-slate-400 hover:text-slate-900 transition-colors py-2">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<span class="font-mono text-sm font-medium">1</span>
+<button class="text-slate-400 hover:text-slate-900 transition-colors py-2">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<!-- Primary Button -->
+<button class="flex-1 bg-primary hover:bg-slate-900 text-white font-display font-medium tracking-wide uppercase text-sm py-4 px-8 rounded-lg transition-all duration-300 flex items-center justify-center gap-3 group">
+<span>Add to Selection</span>
+<span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

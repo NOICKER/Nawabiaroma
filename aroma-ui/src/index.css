@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-primary: #1289a1;
+
+  --animate-scroll-down: scrollDown 3s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+  --animate-float: float 8s ease-in-out infinite;
+
+  @keyframes scrollDown {
+    0% {
+      transform: scaleY(0);
+      transform-origin: top;
+    }
+
+    50% {
+      transform: scaleY(1);
+      transform-origin: top;
+    }
+
+    51% {
+      transform: scaleY(1);
+      transform-origin: bottom;
+    }
+
+    100% {
+      transform: scaleY(0);
+      transform-origin: bottom;
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+      transform: translateY(-15px) rotate(0.5deg);
+    }
+  }
+}
+
+:root {
+  /* Default Light Mode */
+  --color-ink: #000000;
+  --color-canvas: #F5F5F7;
+  --glass-surface: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --glass-refraction: rgba(0, 0, 0, 0.2);
+  --text-muted: #666666;
+}
+
+.dark {
+  /* Dark Mode */
+  --color-ink: #FFFFFF;
+  --color-canvas: #0A0A0A;
+  --glass-surface: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-refraction: rgba(255, 255, 255, 0.4);
+  --text-muted: #888888;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.glass-panel {
+  background: var(--glass-surface);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Light mode specific adjustment if needed over glass-panel */
+:root:not(.dark) .glass-panel {
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.03),
+    inset 0 0 0 1px var(--glass-border);
+}
+
+.refraction-text {
+  color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.15) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  backdrop-filter: blur(2px);
+}
+
+:root:not(.dark) .refraction-text {
+  color: #E5E7EB;
+  /* Light mode text color for INVISIBLE ARCHITECTURE */
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  backdrop-filter: none;
+  mix-blend-mode: multiply;
+}
+
+.light-glow {
+  filter: blur(120px);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.animate-float {
+  animation: var(--animate-float);
+}
+
+.animate-scroll-down {
+  animation: var(--animate-scroll-down);
+}
