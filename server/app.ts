@@ -1,9 +1,12 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { addressesRouter } from '../routes/addresses.js';
+import { cartRouter } from '../routes/cart.js';
 import { checkoutRouter } from '../routes/checkout.js';
 import { contentRouter } from '../routes/content.js';
 import { adminRouter } from '../routes/admin.js';
+import { ordersRouter } from '../routes/orders.js';
 import { productsRouter } from '../routes/products.js';
 import { webhooksRouter } from '../routes/webhooks.js';
 import { errorHandler } from '../middleware/errorHandler.js';
@@ -47,6 +50,9 @@ export function createApp() {
 
     app.use('/api/', apiRateLimit);
 
+    app.use('/api/addresses', addressesRouter);
+    app.use('/api/cart', cartRouter);
+    app.use('/api/orders', ordersRouter);
     app.use('/api/products', productsRouter);
     app.use('/api', contentRouter);
 

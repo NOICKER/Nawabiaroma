@@ -1,57 +1,58 @@
-import { ProductCard } from '../components/ProductCard';
-import { storeProducts } from '../data/products';
-
-const cardProducts = storeProducts.map((product) => ({
-    id: product.id,
-    name: product.displayName,
-    category: product.category,
-    price: product.price,
-    image: product.image,
-    glowColor: product.glowColor,
-    delay: product.delay,
-}));
-
-const columnClasses = [
-    'flex flex-col gap-8 md:gap-10',
-    'flex flex-col gap-8 md:gap-10 md:mt-12',
-    'flex flex-col gap-8 md:gap-10 md:mt-4 lg:mt-24',
-];
-
-const columns = cardProducts.reduce<typeof cardProducts[number][][]>(
-    (productColumns, product, index) => {
-        productColumns[index % productColumns.length].push(product);
-        return productColumns;
-    },
-    Array.from({ length: columnClasses.length }, () => [])
-);
+import { ProductCard, ProductCardSkeleton, type Product } from '../components/ProductCard';
+import { useStoreProducts } from '../data/products';
 
 export function Shop() {
-    return (
-        <main className="relative z-10 pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto flex flex-col items-center">
+    const { products, isLoading, error } = useStoreProducts();
+    const cardProducts: Product[] = products.map((product) => ({
+        id: product.id,
+        name: product.displayName,
+        category: product.category,
+        price: product.price,
+        image: product.image,
+        glowColor: product.glowColor,
+        delay: product.delay,
+    }));
 
-            {/* Page Header */}
-            <header className="text-center mb-16 md:mb-24 opacity-0 animate-[fadeIn_1s_ease-out_forwards]">
-                <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-light tracking-tight text-[var(--color-ink)] mb-4 md:mb-6">
+    const columnClasses = [
+        'flex flex-col gap-8 md:gap-10',
+        'flex flex-col gap-8 md:gap-10 md:mt-12',
+        'flex flex-col gap-8 md:gap-10 md:mt-4 lg:mt-24',
+    ];
+
+    const columns = cardProducts.reduce<Product[][]>(
+        (productColumns, product, index) => {
+            productColumns[index % productColumns.length].push(product);
+            return productColumns;
+        },
+        Array.from({ length: columnClasses.length }, () => []),
+    );
+
+    return (
+        <main className="relative z-10 mx-auto flex max-w-[1400px] flex-col items-center px-4 pb-24 pt-28 md:px-8 md:pb-20 md:pt-32">
+            <header className="mb-14 text-center opacity-0 animate-[fadeIn_1s_ease-out_forwards] md:mb-24">
+                <h1 className="mb-4 font-display text-4xl font-light tracking-tight text-[var(--color-ink)] sm:text-5xl md:mb-6 md:text-7xl lg:text-8xl">
                     THE COLLECTION
                 </h1>
-                <p className="font-light text-[var(--text-muted)] text-lg max-w-lg mx-auto leading-relaxed">
+                <p className="mx-auto max-w-lg text-base font-light leading-relaxed text-[var(--text-muted)] md:text-lg">
                     Ethereal olfaction captured in glass. A study of light, shadow, and the invisible architecture of scent.
                 </p>
             </header>
 
-            <p className="mb-8 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                The Debut Collection — {cardProducts.length} Ensembles
+            <p className="mb-8 text-center font-mono text-[10px] uppercase tracking-[0.26em] text-[var(--text-muted)] sm:text-[11px] sm:tracking-[0.3em]">
+                {isLoading ? 'Loading the Debut Collection' : `The Debut Collection - ${cardProducts.length} Ensembles`}
             </p>
 
-            {/* Filter Bar */}
-            <div className="sticky top-28 z-40 mb-16 w-full flex justify-center opacity-0 animate-[fadeIn_1s_ease-out_0.2s_forwards]">
-                <div className="glass-panel rounded-full px-2 py-2 md:px-6 md:py-3 shadow-sm inline-flex">
-                    <div className="flex items-center gap-6 md:gap-8 overflow-x-auto no-scrollbar px-4">
-                        <button className="whitespace-nowrap text-sm font-medium text-[var(--color-primary)] dark:text-white relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-[var(--color-primary)] dark:after:bg-white transition-colors">
+            <div className="sticky top-20 z-20 mb-12 flex w-full justify-center opacity-0 animate-[fadeIn_1s_ease-out_0.2s_forwards] md:top-28 md:mb-16">
+                <div className="inline-flex w-full max-w-full rounded-[28px] glass-panel px-1 py-1.5 shadow-sm md:w-auto md:rounded-full md:px-6 md:py-3">
+                    <div className="no-scrollbar flex items-center gap-5 overflow-x-auto px-3 md:gap-8 md:px-4">
+                        <button className="relative whitespace-nowrap text-sm font-medium text-[var(--color-primary)] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:bg-[var(--color-primary)] after:content-[''] dark:text-white dark:after:bg-white">
                             All Scents
                         </button>
                         {['Woody', 'Floral', 'Fresh', 'Oriental', 'Citrus'].map((category) => (
-                            <button key={category} className="whitespace-nowrap text-sm font-medium text-[var(--text-muted)] hover:text-[var(--color-ink)] transition-colors">
+                            <button
+                                key={category}
+                                className="whitespace-nowrap text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]"
+                            >
                                 {category}
                             </button>
                         ))}
@@ -59,18 +60,41 @@ export function Shop() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10 w-full">
-                {columns.map((column, index) => (
-                    <div key={index} className={columnClasses[index]}>
-                        {column.map((product) => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
+            {error ? (
+                <div className="w-full rounded-[28px] border border-[var(--glass-border)] bg-[var(--glass-surface)] px-6 py-5 text-sm text-[var(--text-muted)]">
+                    {error}
+                </div>
+            ) : (
+                <>
+                    <div className="flex w-full flex-col gap-6 md:hidden">
+                        {isLoading
+                            ? Array.from({ length: 6 }, (_, index) => (
+                                  <ProductCardSkeleton key={index} delay={`${0.2 + index * 0.1}s`} />
+                              ))
+                            : cardProducts.map((product) => <ProductCard key={product.id} product={product} />)}
                     </div>
-                ))}
-            </div>
 
-            {/* Bottom gradient fade */}
-            <div className="fixed bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[var(--color-canvas)] to-transparent pointer-events-none z-20"></div>
+                    <div className="hidden w-full gap-8 md:grid md:grid-cols-2 md:gap-10 lg:grid-cols-3">
+                        {isLoading
+                            ? columnClasses.map((columnClass, columnIndex) => (
+                                  <div key={columnIndex} className={columnClass}>
+                                      {Array.from({ length: 2 }, (_, index) => (
+                                          <ProductCardSkeleton key={index} delay={`${0.2 + (columnIndex * 2 + index) * 0.1}s`} />
+                                      ))}
+                                  </div>
+                              ))
+                            : columns.map((column, index) => (
+                                  <div key={index} className={columnClasses[index]}>
+                                      {column.map((product) => (
+                                          <ProductCard key={product.id} product={product} />
+                                      ))}
+                                  </div>
+                              ))}
+                    </div>
+                </>
+            )}
+
+            <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-20 hidden h-48 bg-gradient-to-t from-[var(--color-canvas)] to-transparent md:block"></div>
 
             <style>{`
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

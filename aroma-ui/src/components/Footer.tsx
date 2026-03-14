@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 export function Footer() {
     return (
         <footer className="border-t border-[var(--glass-border)] bg-[var(--color-canvas)]/70">
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-16 md:py-20 grid gap-12 md:grid-cols-[1.2fr_1fr_1fr]">
+            <div className="mx-auto grid max-w-[1400px] gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr_1fr] md:px-8 md:py-20">
                 <div className="space-y-4">
-                    <Link className="inline-flex text-2xl font-bold tracking-[0.3em] leading-none" to="/">
+                    <Link className="inline-flex text-2xl font-bold leading-none tracking-[0.3em]" to="/">
                         NAWABI
                     </Link>
-                    <p className="max-w-md font-light text-[var(--text-muted)] leading-relaxed">
+                    <p className="max-w-md font-light leading-relaxed text-[var(--text-muted)]">
                         Modern perfume composed with memory, restraint, and a quiet sense of ceremony.
                     </p>
                 </div>
@@ -18,13 +18,13 @@ export function Footer() {
                         Navigation
                     </p>
                     <div className="flex flex-col gap-3">
-                        <Link className="text-sm hover:opacity-60 transition-opacity" to="/">
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/">
                             Home
                         </Link>
-                        <Link className="text-sm hover:opacity-60 transition-opacity" to="/shop">
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/shop">
                             Shop
                         </Link>
-                        <Link className="text-sm hover:opacity-60 transition-opacity" to="/about">
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/about">
                             About
                         </Link>
                     </div>
@@ -42,9 +42,9 @@ export function Footer() {
             </div>
 
             <div className="border-t border-[var(--glass-border)]">
-                <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
+                <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
                     <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                        Copyright © 2026 Nawabi. All rights reserved.
+                        Copyright 2026 Nawabi. All rights reserved.
                     </p>
                 </div>
             </div>

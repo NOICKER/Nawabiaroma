@@ -1,17 +1,23 @@
-import { ProductCard } from '../../components/ProductCard';
-import { featuredProducts } from '../../data/products';
+import { ProductCard, ProductCardSkeleton } from '../../components/ProductCard';
+import { getFeaturedProducts, type StoreProduct } from '../../data/products';
 
-const cardProducts = featuredProducts.map((product) => ({
-    id: product.id,
-    name: product.displayName,
-    category: product.category,
-    price: product.price,
-    image: product.image,
-    glowColor: product.glowColor,
-    delay: product.delay,
-}));
+interface CollectionPreviewProps {
+    products: StoreProduct[];
+    isLoading: boolean;
+    error: string | null;
+}
 
-export function CollectionPreview() {
+export function CollectionPreview({ products, isLoading, error }: CollectionPreviewProps) {
+    const featuredProducts = getFeaturedProducts(products).map((product) => ({
+        id: product.id,
+        name: product.displayName,
+        category: product.category,
+        price: product.price,
+        image: product.image,
+        glowColor: product.glowColor,
+        delay: product.delay,
+    }));
+
     return (
         <section className="w-full py-24 md:py-32">
             <div className="space-y-4 mb-12 md:mb-16">
@@ -26,11 +32,19 @@ export function CollectionPreview() {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-                {cardProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                ))}
-            </div>
+            {error ? (
+                <div className="rounded-[28px] border border-[var(--glass-border)] bg-[var(--glass-surface)] px-6 py-5 text-sm text-[var(--text-muted)]">
+                    {error}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+                    {isLoading
+                        ? Array.from({ length: 3 }, (_, index) => (
+                              <ProductCardSkeleton key={index} delay={`${0.2 + index * 0.1}s`} />
+                          ))
+                        : featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+                </div>
+            )}
 
             <style>{`
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }

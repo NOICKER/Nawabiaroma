@@ -1,6 +1,17 @@
 export type FragranceNoteType = 'top' | 'heart' | 'base';
-export type OrderStatus = 'pending' | 'paid' | 'shipped';
+export const orderStatuses = [
+    'draft',
+    'awaiting_payment',
+    'paid',
+    'failed_payment',
+    'cancelled',
+    'processing',
+    'shipped',
+    'delivered',
+] as const;
+export type OrderStatus = (typeof orderStatuses)[number];
 export type PaymentStatus = 'requires_payment_method' | 'succeeded' | 'failed' | 'refunded';
+export type CartStatus = 'active' | 'abandoned' | 'converted';
 
 export interface ProductSummary {
     id: number;
@@ -103,6 +114,77 @@ export interface CheckoutSessionResponse {
     shippingAmount: number;
     totalAmount: number;
     items: PricedCartItem[];
+}
+
+export interface PersistentCartItem {
+    id: number;
+    variantId: number;
+    productId: number;
+    productName: string;
+    productSlug: string;
+    sku: string;
+    sizeLabel: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    stockQuantity: number;
+    primaryImageUrl: string | null;
+}
+
+export interface PersistentCart {
+    id: number | null;
+    customerId: number | null;
+    sessionId: string | null;
+    status: CartStatus;
+    expiresAt: string | null;
+    updatedAt: string | null;
+    items: PersistentCartItem[];
+    itemCount: number;
+    subtotal: number;
+}
+
+export interface CreatedOrderItem {
+    variantId: number;
+    productId: number;
+    productName: string;
+    variant: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+}
+
+export interface CreatedOrderResponse {
+    orderId: number;
+    items: CreatedOrderItem[];
+    subtotal: number;
+    total: number;
+    address: SavedAddress;
+}
+
+export interface OrderSummaryResponse {
+    orderId: number;
+    status: OrderStatus;
+    items: CreatedOrderItem[];
+    subtotal: number;
+    total: number;
+    address: SavedAddress | null;
+    created_at: string;
+}
+
+export interface SavedAddress {
+    id: number;
+    customerId: number | null;
+    sessionId: string | null;
+    name: string;
+    phone: string | null;
+    addressLine1: string;
+    addressLine2: string | null;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    isDefault: boolean;
+    createdAt: string;
 }
 
 export interface AuthTokenPayload {

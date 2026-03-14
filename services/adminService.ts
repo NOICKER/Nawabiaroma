@@ -1,4 +1,5 @@
 import { HttpError } from '../middleware/errorHandler.js';
+import type { OrderStatus } from '../models/types.js';
 import { query } from '../server/config/database.js';
 
 interface ProductPayload {
@@ -13,7 +14,7 @@ interface ProductPayload {
 }
 
 interface OrderUpdatePayload {
-    status?: 'pending' | 'paid' | 'shipped';
+    status?: OrderStatus;
     trackingNumber?: string | null;
 }
 

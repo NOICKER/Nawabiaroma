@@ -1,30 +1,40 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
+function getInitialTheme() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const storedTheme = window.localStorage.getItem('theme');
+
+  if (storedTheme === 'dark') {
+    return true;
+  }
+
+  if (storedTheme === 'light') {
+    return false;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(getInitialTheme);
 
   useEffect(() => {
-    // Check initial preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
+    document.documentElement.classList.toggle('dark', isDark);
+    window.localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   const toggleTheme = () => {
-    setIsDark(!isDark);
-    if (!isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setIsDark((currentTheme) => !currentTheme);
   };
 
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-full glass-panel hover:bg-white/10 transition-colors flex items-center justify-center"
+      className="flex h-10 w-10 items-center justify-center rounded-full glass-panel transition-colors hover:bg-white/10"
       aria-label="Toggle theme"
     >
       {isDark ? <Sun size={18} /> : <Moon size={18} />}

@@ -1,15 +1,503 @@
 import type Stripe from 'stripe';
 import { HttpError } from '../middleware/errorHandler.js';
+import type { CreatedOrderItem, CreatedOrderResponse, OrderStatus, OrderSummaryResponse, SavedAddress } from '../models/types.js';
 import { logger, serializeError } from './logger.js';
 import { sendOrderConfirmationEmail } from './emailService.js';
 import { parseCartSnapshotMetadata, parseShippingAddressMetadata } from './checkoutService.js';
-import { withTransaction } from '../server/config/database.js';
+import { query, withTransaction } from '../server/config/database.js';
+
+interface CartOrderRow {
+    id: number | string;
+    customer_id: number | string | null;
+    session_id: string;
+}
+
+interface CartOrderItemRow {
+    variantId: number | string;
+    productId: number | string;
+    productName: string;
+    variant: string;
+    quantity: number;
+    price: number | string;
+    subtotal: number | string;
+}
+
+interface AddressRow {
+    id: number | string;
+    customer_id: number | string | null;
+    session_id: string | null;
+    full_name: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+    phone: string | null;
+    is_default: boolean;
+    created_at: Date | string;
+}
 
 interface OrderFulfillmentResult {
     orderId: number;
     orderReference: string;
     totalAmount: number;
     alreadyProcessed: boolean;
+}
+
+interface OrderRow {
+    id: number | string;
+    status: OrderStatus;
+    subtotal_amount: number | string;
+    total_amount: number | string;
+    address_id: number | string | null;
+    created_at: Date | string;
+}
+
+interface OrderItemRow {
+    orderId: number | string;
+    variantId: number | string;
+    productId: number | string;
+    productName: string;
+    variant: string;
+    quantity: number;
+    price: number | string;
+    subtotal: number | string;
+}
+
+interface InventoryRow {
+    id: number | string;
+    variantId: number | string;
+    quantityAvailable: number;
+    locationId: string;
+}
+
+function throwInsufficientStock(variantId: number): never {
+    throw new HttpError(409, 'Insufficient stock', { variantId });
+}
+
+function toIsoString(value: Date | string) {
+    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function mapSavedAddress(row: AddressRow): SavedAddress {
+    return {
+        id: Number(row.id),
+        customerId: row.customer_id === null ? null : Number(row.customer_id),
+        sessionId: row.session_id,
+        name: row.full_name,
+        phone: row.phone,
+        addressLine1: row.line1,
+        addressLine2: row.line2,
+        city: row.city,
+        state: row.state,
+        postalCode: row.postal_code,
+        country: row.country,
+        isDefault: row.is_default,
+        createdAt: toIsoString(row.created_at),
+    };
+}
+
+function mapOrderItem(row: OrderItemRow): CreatedOrderItem {
+    return {
+        variantId: Number(row.variantId),
+        productId: Number(row.productId),
+        productName: row.productName,
+        variant: row.variant,
+        quantity: row.quantity,
+        price: Number(row.price),
+        subtotal: Number(row.subtotal),
+    };
+}
+
+function mapOrderSummary(
+    row: OrderRow,
+    itemsByOrderId: Map<number, CreatedOrderItem[]>,
+    addressesById: Map<number, SavedAddress>,
+): OrderSummaryResponse {
+    const orderId = Number(row.id);
+    const addressId = row.address_id === null ? null : Number(row.address_id);
+
+    return {
+        orderId,
+        status: row.status,
+        items: itemsByOrderId.get(orderId) ?? [],
+        subtotal: Number(row.subtotal_amount),
+        total: Number(row.total_amount),
+        address: addressId === null ? null : (addressesById.get(addressId) ?? null),
+        created_at: toIsoString(row.created_at),
+    };
+}
+
+async function getOrderItemsByOrderIds(orderIds: number[]) {
+    if (orderIds.length === 0) {
+        return new Map<number, CreatedOrderItem[]>();
+    }
+
+    const result = await query<OrderItemRow>(
+        `
+            SELECT
+                oi.order_id AS "orderId",
+                oi.product_variant_id AS "variantId",
+                pv.product_id AS "productId",
+                p.name AS "productName",
+                pv.size_label AS variant,
+                oi.quantity,
+                oi.price_at_purchase AS price,
+                oi.price_at_purchase * oi.quantity AS subtotal
+            FROM order_items oi
+            INNER JOIN product_variants pv ON pv.id = oi.product_variant_id
+            INNER JOIN products p ON p.id = pv.product_id
+            WHERE oi.order_id = ANY($1::bigint[])
+            ORDER BY oi.order_id DESC, oi.id ASC
+        `,
+        [orderIds],
+    );
+
+    const itemsByOrderId = new Map<number, CreatedOrderItem[]>();
+
+    for (const row of result.rows) {
+        const orderId = Number(row.orderId);
+        const items = itemsByOrderId.get(orderId) ?? [];
+        items.push(mapOrderItem(row));
+        itemsByOrderId.set(orderId, items);
+    }
+
+    return itemsByOrderId;
+}
+
+async function getAddressesByIds(addressIds: number[]) {
+    if (addressIds.length === 0) {
+        return new Map<number, SavedAddress>();
+    }
+
+    const result = await query<AddressRow>(
+        `
+            SELECT
+                id,
+                customer_id,
+                session_id,
+                full_name,
+                line1,
+                line2,
+                city,
+                state,
+                postal_code,
+                country,
+                phone,
+                is_default,
+                created_at
+            FROM addresses
+            WHERE id = ANY($1::bigint[])
+        `,
+        [addressIds],
+    );
+
+    return new Map(result.rows.map((row) => [Number(row.id), mapSavedAddress(row)]));
+}
+
+export async function getOrderById(orderId: number): Promise<OrderSummaryResponse> {
+    const result = await query<OrderRow>(
+        `
+            SELECT
+                id,
+                status,
+                subtotal_amount,
+                total_amount,
+                address_id,
+                created_at
+            FROM orders
+            WHERE id = $1
+            LIMIT 1
+        `,
+        [orderId],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Order not found.');
+    }
+
+    const row = result.rows[0];
+    const orderIds = [Number(row.id)];
+    const addressIds = row.address_id === null ? [] : [Number(row.address_id)];
+    const [itemsByOrderId, addressesById] = await Promise.all([
+        getOrderItemsByOrderIds(orderIds),
+        getAddressesByIds(addressIds),
+    ]);
+
+    return mapOrderSummary(row, itemsByOrderId, addressesById);
+}
+
+export async function listOrdersBySessionId(sessionId: string): Promise<OrderSummaryResponse[]> {
+    const result = await query<OrderRow>(
+        `
+            SELECT
+                id,
+                status,
+                subtotal_amount,
+                total_amount,
+                address_id,
+                created_at
+            FROM orders
+            WHERE session_id = $1
+            ORDER BY created_at DESC, id DESC
+        `,
+        [sessionId],
+    );
+
+    if (result.rowCount === 0) {
+        return [];
+    }
+
+    const orderIds = result.rows.map((row) => Number(row.id));
+    const addressIds = [...new Set(result.rows.flatMap((row) => (row.address_id === null ? [] : [Number(row.address_id)])))];
+    const [itemsByOrderId, addressesById] = await Promise.all([
+        getOrderItemsByOrderIds(orderIds),
+        getAddressesByIds(addressIds),
+    ]);
+
+    return result.rows.map((row) => mapOrderSummary(row, itemsByOrderId, addressesById));
+}
+
+export async function updateOrderStatus(orderId: number, status: OrderStatus): Promise<OrderSummaryResponse> {
+    const result = await query<{ id: number | string }>(
+        `
+            UPDATE orders
+            SET status = $2
+            WHERE id = $1
+            RETURNING id
+        `,
+        [orderId, status],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Order not found.');
+    }
+
+    return getOrderById(orderId);
+}
+
+export async function createOrderFromCartSession(sessionId: string, addressId: number): Promise<CreatedOrderResponse> {
+    return withTransaction(async (client) => {
+        const cartResult = await client.query<CartOrderRow>(
+            `
+                SELECT
+                    id,
+                    customer_id,
+                    session_id
+                FROM carts
+                WHERE session_id = $1
+                  AND status = 'active'
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+            `,
+            [sessionId],
+        );
+
+        if (cartResult.rowCount === 0) {
+            throw new HttpError(404, 'Cart not found.');
+        }
+
+        const cart = cartResult.rows[0];
+        const cartId = Number(cart.id);
+        const customerId = cart.customer_id === null ? null : Number(cart.customer_id);
+        const addressResult = await client.query<AddressRow>(
+            `
+                SELECT
+                    id,
+                    customer_id,
+                    session_id,
+                    full_name,
+                    line1,
+                    line2,
+                    city,
+                    state,
+                    postal_code,
+                    country,
+                    phone,
+                    is_default,
+                    created_at
+                FROM addresses
+                WHERE id = $1
+                  AND session_id = $2
+                LIMIT 1
+            `,
+            [addressId, sessionId],
+        );
+
+        if (addressResult.rowCount === 0) {
+            throw new HttpError(404, 'Address not found.');
+        }
+
+        const address = mapSavedAddress(addressResult.rows[0]);
+        const shippingAddress = {
+            fullName: address.name,
+            line1: address.addressLine1,
+            line2: address.addressLine2 ?? undefined,
+            city: address.city,
+            state: address.state,
+            postalCode: address.postalCode,
+            country: address.country,
+            phone: address.phone ?? undefined,
+        };
+
+        const cartItemsResult = await client.query<CartOrderItemRow>(
+            `
+                SELECT
+                    ci.product_variant_id AS "variantId",
+                    pv.product_id AS "productId",
+                    p.name AS "productName",
+                    pv.size_label AS variant,
+                    ci.quantity,
+                    COALESCE(pv.price_override, p.base_price) AS price,
+                    COALESCE(pv.price_override, p.base_price) * ci.quantity AS subtotal
+                FROM cart_items ci
+                INNER JOIN product_variants pv ON pv.id = ci.product_variant_id
+                INNER JOIN products p ON p.id = pv.product_id
+                WHERE ci.cart_id = $1
+                ORDER BY ci.created_at ASC, ci.id ASC
+            `,
+            [cartId],
+        );
+
+        if (cartItemsResult.rowCount === 0) {
+            throw new HttpError(400, 'Cart has no items.');
+        }
+
+        const items = cartItemsResult.rows.map<CreatedOrderItem>((row) => ({
+            variantId: Number(row.variantId),
+            productId: Number(row.productId),
+            productName: row.productName,
+            variant: row.variant,
+            quantity: row.quantity,
+            price: Number(row.price),
+            subtotal: Number(row.subtotal),
+        }));
+
+        const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+        const total = subtotal;
+        const variantIds = [...new Set(items.map((item) => item.variantId))].sort((left, right) => left - right);
+        const inventoryResult = await client.query<InventoryRow>(
+            `
+                SELECT
+                    id,
+                    product_variant_id AS "variantId",
+                    quantity_available AS "quantityAvailable",
+                    location_id AS "locationId"
+                FROM inventory
+                WHERE product_variant_id = ANY($1::bigint[])
+                ORDER BY
+                    product_variant_id ASC,
+                    CASE WHEN location_id = 'default' THEN 0 ELSE 1 END,
+                    id ASC
+                FOR UPDATE
+            `,
+            [variantIds],
+        );
+        const inventoryByVariantId = new Map<number, InventoryRow[]>();
+
+        for (const row of inventoryResult.rows) {
+            const variantId = Number(row.variantId);
+            const inventories = inventoryByVariantId.get(variantId) ?? [];
+
+            inventories.push(row);
+            inventoryByVariantId.set(variantId, inventories);
+        }
+
+        for (const item of items) {
+            const inventories = inventoryByVariantId.get(item.variantId) ?? [];
+            const totalAvailable = inventories.reduce((sum, inventory) => sum + inventory.quantityAvailable, 0);
+
+            if (totalAvailable < item.quantity) {
+                throwInsufficientStock(item.variantId);
+            }
+        }
+
+        for (const item of items) {
+            const inventories = inventoryByVariantId.get(item.variantId);
+            let remainingQuantity = item.quantity;
+
+            if (!inventories || inventories.length === 0) {
+                throwInsufficientStock(item.variantId);
+            }
+
+            for (const inventory of inventories) {
+                if (remainingQuantity === 0) {
+                    break;
+                }
+
+                const quantityToDeduct = Math.min(inventory.quantityAvailable, remainingQuantity);
+
+                if (quantityToDeduct === 0) {
+                    continue;
+                }
+
+                const inventoryUpdate = await client.query(
+                    `
+                        UPDATE inventory
+                        SET quantity_available = quantity_available - $2
+                        WHERE id = $1
+                          AND quantity_available >= $2
+                    `,
+                    [Number(inventory.id), quantityToDeduct],
+                );
+
+                if (inventoryUpdate.rowCount === 0) {
+                    throwInsufficientStock(item.variantId);
+                }
+
+                remainingQuantity -= quantityToDeduct;
+            }
+
+            if (remainingQuantity > 0) {
+                throwInsufficientStock(item.variantId);
+            }
+        }
+
+        const orderInsert = await client.query<{ id: number | string }>(
+            `
+                INSERT INTO orders (
+                    customer_id,
+                    session_id,
+                    cart_id,
+                    address_id,
+                    subtotal_amount,
+                    total_amount,
+                    status,
+                    shipping_address_json,
+                    stripe_payment_intent_id
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, 'awaiting_payment', $7::jsonb, NULL)
+                RETURNING id
+            `,
+            [customerId, cart.session_id, cartId, address.id, subtotal, total, JSON.stringify(shippingAddress)],
+        );
+
+        const orderId = Number(orderInsert.rows[0].id);
+
+        for (const item of items) {
+            await client.query(
+                `
+                    INSERT INTO order_items (
+                        order_id,
+                        product_variant_id,
+                        quantity,
+                        price_at_purchase
+                    )
+                    VALUES ($1, $2, $3, $4)
+                `,
+                [orderId, item.variantId, item.quantity, item.price],
+            );
+        }
+
+        return {
+            orderId,
+            items,
+            subtotal,
+            total,
+            address,
+        };
+    });
 }
 
 export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.PaymentIntent): Promise<OrderFulfillmentResult> {
@@ -41,20 +529,22 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
         }
 
         const customerId = await upsertCustomer(client, customerEmail, paymentIntent.customer);
+        const subtotalAmount = pricedCartItems.reduce((sum, item) => sum + item.lineTotal, 0);
         const totalAmount = Number(paymentIntent.amount_received || paymentIntent.amount) / 100;
         const orderInsert = await client.query<{ id: number | string }>(
             `
                 INSERT INTO orders (
                     customer_id,
+                    subtotal_amount,
                     total_amount,
                     status,
                     shipping_address_json,
                     stripe_payment_intent_id
                 )
-                VALUES ($1, $2, 'paid', $3::jsonb, $4)
+                VALUES ($1, $2, $3, 'paid', $4::jsonb, $5)
                 RETURNING id
             `,
-            [customerId, totalAmount, JSON.stringify(shippingAddress), paymentIntent.id],
+            [customerId, subtotalAmount, totalAmount, JSON.stringify(shippingAddress), paymentIntent.id],
         );
 
         const orderId = Number(orderInsert.rows[0].id);

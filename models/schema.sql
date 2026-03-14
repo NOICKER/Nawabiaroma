@@ -1,5 +1,14 @@
 CREATE TYPE fragrance_note_type AS ENUM ('top', 'heart', 'base');
-CREATE TYPE order_status AS ENUM ('pending', 'paid', 'shipped');
+CREATE TYPE order_status AS ENUM (
+    'draft',
+    'awaiting_payment',
+    'paid',
+    'failed_payment',
+    'cancelled',
+    'processing',
+    'shipped',
+    'delivered'
+);
 CREATE TYPE payment_status AS ENUM ('requires_payment_method', 'succeeded', 'failed', 'refunded');
 
 CREATE TABLE products (
@@ -52,11 +61,15 @@ CREATE TABLE customers (
 CREATE TABLE orders (
     id BIGSERIAL PRIMARY KEY,
     customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    session_id TEXT,
+    cart_id BIGINT,
+    address_id BIGINT,
+    subtotal_amount NUMERIC(10, 2) NOT NULL,
     total_amount NUMERIC(10, 2) NOT NULL,
-    status order_status NOT NULL DEFAULT 'pending',
-    shipping_address_json JSONB NOT NULL,
+    status order_status NOT NULL DEFAULT 'awaiting_payment',
+    shipping_address_json JSONB,
     tracking_number TEXT,
-    stripe_payment_intent_id TEXT NOT NULL UNIQUE,
+    stripe_payment_intent_id TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -101,6 +114,9 @@ CREATE INDEX idx_product_variants_product_id ON product_variants(product_id);
 CREATE INDEX idx_fragrance_notes_product_id ON fragrance_notes(product_id);
 CREATE INDEX idx_product_images_product_id ON product_images(product_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX idx_orders_session_id ON orders(session_id);
+CREATE INDEX idx_orders_cart_id ON orders(cart_id);
+CREATE INDEX idx_orders_address_id ON orders(address_id);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_articles_published ON articles(is_published, published_at DESC);
 CREATE INDEX idx_pages_slug ON pages(slug);

@@ -1,3 +1,73 @@
+import { useEffect, useState } from 'react';
+
+const PRODUCTS_ENDPOINT = '/api/products';
+const FALLBACK_PRODUCT_IMAGE =
+    'https://images.unsplash.com/photo-1594913785121-667503fa0e98?auto=format&fit=crop&q=80&w=1200';
+const FALLBACK_PRODUCT_SOURCE = 'Nawabi Aroma Atelier';
+const DEFAULT_PRODUCT_TAGLINE = 'A signature composed with restrained structure and lasting depth.';
+const DEFAULT_PRODUCT_DESCRIPTION = 'This composition is being updated. Please check back shortly for the full fragrance profile.';
+const GLOW_GRADIENTS = [
+    'bg-gradient-to-tr from-stone-100 to-white dark:from-white/5 dark:to-white/5',
+    'bg-gradient-to-tr from-rose-50 to-white dark:from-rose-500/5 dark:to-rose-500/5',
+    'bg-gradient-to-tr from-amber-50 to-transparent dark:from-amber-500/5 dark:to-amber-500/5',
+    'bg-gradient-to-tr from-emerald-50 to-white dark:from-emerald-500/5 dark:to-emerald-500/5',
+    'bg-gradient-to-tr from-orange-50 to-transparent dark:from-orange-500/5 dark:to-orange-500/5',
+    'bg-gradient-to-tr from-blue-50 to-white dark:from-sky-500/5 dark:to-sky-500/5',
+] as const;
+
+interface ProductSummaryApi {
+    id: number;
+    slug: string;
+    name: string;
+    subName: string | null;
+    tagline: string | null;
+    size: string | null;
+    basePrice: number;
+    primaryImageUrl: string | null;
+}
+
+interface ProductVariantApi {
+    id: number;
+    sku: string;
+    sizeLabel: string;
+    price: number;
+    stockQuantity: number;
+}
+
+interface ProductNoteApi {
+    id: number;
+    type: 'top' | 'heart' | 'base';
+    note: string;
+    displayOrder: number;
+}
+
+interface ProductImageApi {
+    id: number;
+    url: string;
+    isPrimary: boolean;
+    displayOrder: number;
+}
+
+interface ProductDetailApi extends ProductSummaryApi {
+    description: string | null;
+    variants: ProductVariantApi[];
+    notes: ProductNoteApi[];
+    images: ProductImageApi[];
+}
+
+interface ProductListResponse {
+    data: ProductSummaryApi[];
+}
+
+interface ProductDetailResponse {
+    data: ProductDetailApi;
+}
+
+interface ApiErrorResponse {
+    error?: string;
+    message?: string;
+}
+
 export interface StoreProduct {
     id: string;
     number: string;
@@ -19,171 +89,322 @@ export interface StoreProduct {
         heart: string[];
         base: string[];
     };
+    variantId: number | null;
 }
 
-export const storeProducts: StoreProduct[] = [
-    {
-        id: 'discovery-set',
-        number: 'N\u00B0. 00 \u2014 Introduction',
-        displayName: 'DISCOVERY SET',
-        name: 'DISCOVERY',
-        nameSub: 'SET',
-        category: '3 x 10ml Set',
-        size: '3 x 10ML \u2014 Discovery Set',
-        price: '\u20B92,400',
-        priceValue: 2400,
-        tagline: 'Three compositions in miniature, designed to be worn before you commit to a full bottle.',
-        description: 'The Discovery Set gathers the house signatures into a single presentation so you can test the collection over several days before opening a full-size bottle.',
-        source: 'Curated in Mumbai, IN',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDMrT3RMQocO-khmZzuXBFTv7sR4v5bRecN26lsg1oWl0mrSlAMXXkBvkgRe3R1PqZmjbd7hGxfzLzt_9-eYpdm0phKuqJ2LT7J9OO2BOdD5yv8KsE2XnOeUoNBOQ3Gz8xq2HYcIN6AGn0way-lgZxJh9k5ES86EQJyfcnI929V7BE7b1GS0udAuKXF5Js7fq86nOwAezKajZfuOFA2kr4P6WFaceWpK-bV2e1aGByjoQ8eruTGTVSh_TqOKZt8TUcXRil2lgaKzEs',
-        glowColor: 'bg-gradient-to-tr from-stone-100 to-white dark:from-white/5 dark:to-white/5',
-        delay: '0.2s',
-        notes: {
-            top: ['Santal 01', 'Rose Noir'],
-            heart: ['Oud Imperial', 'Vetiver 44'],
-            base: ['Amber Dust', 'Cedar Sky'],
-        },
-    },
-    {
-        id: '1',
-        number: 'N\u00B0. 01 \u2014 Signature Edition',
-        displayName: 'SANTAL 01',
-        name: 'SANTAL',
-        nameSub: '01',
-        category: 'Eau de Parfum',
-        size: '50ML \u2014 Eau de Parfum',
-        price: '\u20B98,500',
-        priceValue: 8500,
-        tagline: 'Soft woods and cool cardamom unfold like light passing through carved stone.',
-        description: 'Santal 01 is built around dry sandalwood, bright iris, and a restrained spice profile that stays close to the skin without losing projection.',
-        source: 'Captured in Jaipur, IN',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD7d_skVqwlzVu88d1Eeu9eFCQHX6Lm-tPUm08DEEus5Jz2qTHP4LYTPD1PQEwPtf6op7wPldFsx-JXKvX96Gi2KTSVu-zjnqYzOI_nq-FHN-9rE-XgZ7ziVYsu1FqSPD4Yc0ZCjhNU39KtWNRQPduiVng5j62DS1HanE2p9o5zOTbFnBmi4W5ierod4lcY14pes2Ds7Azrdcyx8jKXVBtEyt5mUbi6TsFOhQkfEpaqof-zUGhji2v77-kxd9CQgvMTIE3dXNiM0Bw',
-        glowColor: 'bg-gradient-to-tr from-gray-100 to-white dark:from-white/5 dark:to-white/5',
-        delay: '0.3s',
-        notes: {
-            top: ['Green Cardamom', 'Bergamot'],
-            heart: ['Iris Concrete', 'Cedar Smoke'],
-            base: ['Mysore Sandalwood', 'Ambrette', 'Cashmere Musk'],
-        },
-    },
-    {
-        id: '2',
-        number: 'N\u00B0. 02 \u2014 After Dusk',
-        displayName: 'ROSE NOIR',
-        name: 'ROSE',
-        nameSub: 'NOIR',
-        category: 'Extrait de Parfum',
-        size: '50ML \u2014 Extrait de Parfum',
-        price: '\u20B99,200',
-        priceValue: 9200,
-        tagline: 'A velvet rose accord cut with dark fruit and mineral smoke.',
-        description: 'Rose Noir pares the flower back to its inky core, pairing jammy petals with incense, patchouli, and a faint metallic brightness.',
-        source: 'Captured in Grasse, FR',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_ENe7uWp_p-50HA55M91KBx2USMgeuZcESr9rfs9RgSQOKmchup4zpaHTpywwAoFacZeUrhb-2py_fDHoo0qwe2ar36ENkVAJ17wwelusaUICra_jqCpDZC5Cr5QrGYIq8ZtqIbrpO1GQ9sokqh3fswkF2fzrFaKYnW1tmwBF2Uieolt5bA3rZ4zZ0Wu7dk2QdTjKUZL5QMuTwYn1KcIGBGojbC2DxsoKAnQcw4PYv0UakasWi63LfU45Sk9GEyxCu2uK72XGzyM',
-        glowColor: 'bg-gradient-to-tr from-rose-50 to-white dark:from-rose-500/5 dark:to-rose-500/5',
-        delay: '0.4s',
-        notes: {
-            top: ['Blackcurrant', 'Turkish Rose'],
-            heart: ['Damask Rose', 'Labdanum'],
-            base: ['Patchouli', 'Incense', 'Black Musk'],
-        },
-    },
-    {
-        id: '3',
-        number: 'N\u00B0. 04 \u2014 Private Reserve',
-        displayName: 'OUD IMPERIAL',
-        name: 'OUD',
-        nameSub: 'IMPERIAL',
-        category: 'Eau de Parfum',
-        size: '100ML \u2014 Extrait de Parfum',
-        price: '\u20B912,000',
-        priceValue: 12000,
-        tagline: 'Smoked wood meets morning dew. An architectural study of resin and light.',
-        description: 'Oud Imperial strips away the ornamental excess of traditional perfumery to reveal the raw, vibrating core of precious agarwood.',
-        source: 'Captured in Grasse, FR',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCyib8HmT77W76QZ7nE5PAdbRSdpVRfjhl_RQTHhKTgYGlkfnssABxm16HsCX7qROeBxe6PdwEz_O1IxJ-Ws1RT4XRVxRNoJAHgM2Kh66cTJlkzZMiQMoSNMEjQm4o0PzdbWeGNaJP0pcVQ4WFnp0C2SnAAk2CC4lNacssulRhOXyzWutBEzZZE2rOEpxwAd50Fqk-zfDUe8ODZ2HNxlFnJQdicEbvPn69rx7VnA-vLXc4DWy0o4okpGYTl-z-Y2boI5RY4QJRDHZY',
-        glowColor: 'bg-gradient-to-tr from-amber-50 to-transparent dark:from-amber-500/5 dark:to-amber-500/5',
-        delay: '0.5s',
-        notes: {
-            top: ['Italian Bergamot', 'Pink Pepper'],
-            heart: ['Kashmiri Saffron', 'White Amber'],
-            base: ['Aged Oud', 'Haitian Vetiver', 'White Musk'],
-        },
-    },
-    {
-        id: '4',
-        number: 'N\u00B0. 05 \u2014 Jardin Study',
-        displayName: 'VETIVER 44',
-        name: 'VETIVER',
-        nameSub: '44',
-        category: 'Cologne',
-        size: '75ML \u2014 Cologne',
-        price: '\u20B98,800',
-        priceValue: 8800,
-        tagline: 'Crushed leaves, wet earth, and a cool citrus lift.',
-        description: 'Vetiver 44 balances green bitterness with airy musk, keeping the composition bright, dry, and deliberately understated.',
-        source: 'Captured in Kochi, IN',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCkiqLKRUGdtFZPeoU_-7pnvdIXNh723Lo5HBzJcvwu0mx1UfDigTa0ElGSeUoigf9cI5QyIJe2zio21UiruplDe4wyiNLIerKIlMXwJKXvN1ps83X4XulP9HJOg77ZyYbH93Y02HuYszQ_9SIZ4ByFGbyrP61_mUbgvyBwTiNe7TRJ2fsH72Chnefzy07X8NX73lmO-1fxgMep5Bk4Oyp2hLCfHZbi4dxkW8kfoTNw-h5pompBLes8xNWbF0bELoxytLWj1miMUkc',
-        glowColor: 'bg-gradient-to-tr from-emerald-50 to-white dark:from-emerald-500/5 dark:to-emerald-500/5',
-        delay: '0.6s',
-        notes: {
-            top: ['Petitgrain', 'Lemon Zest'],
-            heart: ['Green Tea', 'Neroli'],
-            base: ['Vetiver Root', 'Oakmoss', 'Iso E Super'],
-        },
-    },
-    {
-        id: '5',
-        number: 'N\u00B0. 06 \u2014 Amber Archive',
-        displayName: 'AMBER DUST',
-        name: 'AMBER',
-        nameSub: 'DUST',
-        category: 'Eau de Toilette',
-        size: '100ML \u2014 Eau de Toilette',
-        price: '\u20B910,500',
-        priceValue: 10500,
-        tagline: 'Sun-warmed resins softened by vanilla and pale tobacco.',
-        description: 'Amber Dust leans transparent rather than heavy, layering benzoin, cedar, and dry vanilla over a lightly smoked base.',
-        source: 'Captured in Delhi, IN',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAVre2q4xpS41hZCQY71JoFuKYVwDT4ZjnvyBJoB_VI8KLoZEXtCgpmjim_tcsCN8-anp1zwBFoIkdGUeYqE4F8p13h2J6tPCb5mHj-FYZmcXS1vc7XfaR2W3nQWwzKwYYiAq8tqUCURjdV0EKy4H3LjQ6yqt5M0xRGYO3OQ8K6_v8WxEJWGt_RAVpcRtZinp79aC8GibwDghE-77Vhd1ZJOqAOzsNeaQHjE_FEUz35uPNTkNErjAdxuxq0wbKemSw9C7s3eAlb--M',
-        glowColor: 'bg-gradient-to-tr from-orange-50 to-transparent dark:from-orange-500/5 dark:to-orange-500/5',
-        delay: '0.7s',
-        notes: {
-            top: ['Mandarin', 'Pink Pepper'],
-            heart: ['Tobacco Leaf', 'Benzoin'],
-            base: ['Amber Resin', 'Vanilla Husk', 'Cedarwood'],
-        },
-    },
-    {
-        id: '6',
-        number: 'N\u00B0. 07 \u2014 Open Air',
-        displayName: 'CEDAR SKY',
-        name: 'CEDAR',
-        nameSub: 'SKY',
-        category: 'Eau Fraiche',
-        size: '70ML \u2014 Eau Fraiche',
-        price: '\u20B97,900',
-        priceValue: 7900,
-        tagline: 'A cold breeze through cedar boards, citrus peel, and distant rain.',
-        description: 'Cedar Sky keeps the structure transparent, using aromatic woods and mineral musks to create lift without losing depth.',
-        source: 'Captured in Shimla, IN',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAzSl0kZZnOAJ13PwKvHl1dIdWNOVyOJWPZGg2oSvt2rJyJFbYj3b0zBuV6H-8uilI9lKvxcokNLzAGWo3THWChfkDLs4agmpdXRRgQ3viOP4NNWINvKtlpaR-fNdVEh2cS7OUPThGtJEc-OxvGOq7oMTP97__1w3pMm4aN0ak4qWkR1Sut4V3guq7ufbbXDDZHxhIP7txJ5BimuFRRdI-DtX1dy2G9BEVFIo2wTKRLmhhlTsvzCMNyp-wohVYsyk4RtJDrCvNxhqE',
-        glowColor: 'bg-gradient-to-tr from-blue-50 to-white dark:from-sky-500/5 dark:to-sky-500/5',
-        delay: '0.8s',
-        notes: {
-            top: ['Grapefruit', 'Juniper'],
-            heart: ['Lavender', 'Cypress'],
-            base: ['Atlas Cedar', 'White Musk', 'Mineral Amber'],
-        },
-    },
-];
+interface UseStoreProductsResult {
+    products: StoreProduct[];
+    isLoading: boolean;
+    error: string | null;
+}
 
-export const featuredProducts = storeProducts.filter((product) =>
-    ['1', '2', '3'].includes(product.id)
-);
+interface UseStoreProductResult {
+    product: StoreProduct | null;
+    isLoading: boolean;
+    error: string | null;
+}
 
-export const productById = Object.fromEntries(
-    storeProducts.map((product) => [product.id, product])
-) as Record<string, StoreProduct>;
+let productsCache: StoreProduct[] | null = null;
+let productsPromise: Promise<StoreProduct[]> | null = null;
+const productDetailCache = new Map<string, StoreProduct>();
+const productDetailPromiseCache = new Map<string, Promise<StoreProduct>>();
 
-export const discoverySetProduct = productById['discovery-set'];
+function formatPrice(value: number) {
+    return `\u20B9${value.toLocaleString('en-IN')}`;
+}
+
+function getGlowColor(index: number) {
+    return GLOW_GRADIENTS[index % GLOW_GRADIENTS.length];
+}
+
+function getProductCategory(size: string | null) {
+    if (!size) {
+        return 'Signature Fragrance';
+    }
+
+    const parts = size
+        .split(/[\u2014-]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    return parts.length > 1 ? parts[parts.length - 1] : 'Signature Fragrance';
+}
+
+function getProductSize(size: string | null, variants: ProductVariantApi[] = []) {
+    return size?.trim() || variants[0]?.sizeLabel || 'Limited Production';
+}
+
+function getDisplayName(name: string, subName: string | null) {
+    return [name, subName].filter(Boolean).join(' ').trim();
+}
+
+function getProductNumber(id: number, index?: number) {
+    const sequence = typeof index === 'number' ? index + 1 : id;
+    return `N\u00B0. ${String(sequence).padStart(2, '0')}`;
+}
+
+function groupNotes(notes: ProductNoteApi[]): StoreProduct['notes'] {
+    return notes.reduce<StoreProduct['notes']>(
+        (groupedNotes, note) => {
+            groupedNotes[note.type].push(note.note);
+            return groupedNotes;
+        },
+        {
+            top: [],
+            heart: [],
+            base: [],
+        },
+    );
+}
+
+function createBaseStoreProduct(product: ProductSummaryApi, index: number): StoreProduct {
+    const displayName = getDisplayName(product.name, product.subName);
+    const size = getProductSize(product.size);
+
+    return {
+        id: product.slug,
+        number: getProductNumber(product.id, index),
+        displayName,
+        name: product.name.toUpperCase(),
+        nameSub: product.subName?.toUpperCase() ?? '',
+        category: getProductCategory(size),
+        size,
+        price: formatPrice(product.basePrice),
+        priceValue: product.basePrice,
+        tagline: product.tagline?.trim() || DEFAULT_PRODUCT_TAGLINE,
+        description: DEFAULT_PRODUCT_DESCRIPTION,
+        source: FALLBACK_PRODUCT_SOURCE,
+        image: product.primaryImageUrl || FALLBACK_PRODUCT_IMAGE,
+        glowColor: getGlowColor(index),
+        delay: `${0.2 + index * 0.1}s`,
+        notes: {
+            top: [],
+            heart: [],
+            base: [],
+        },
+        variantId: null,
+    };
+}
+
+function mapProductSummary(product: ProductSummaryApi, index: number) {
+    return createBaseStoreProduct(product, index);
+}
+
+function mapProductDetail(product: ProductDetailApi, index?: number) {
+    const baseProduct = createBaseStoreProduct(product, Math.max(index ?? product.id - 1, 0));
+    const sortedImages = [...product.images].sort((left, right) => {
+        if (left.isPrimary !== right.isPrimary) {
+            return left.isPrimary ? -1 : 1;
+        }
+
+        return left.displayOrder - right.displayOrder;
+    });
+    const sortedNotes = [...product.notes].sort((left, right) => left.displayOrder - right.displayOrder);
+
+    return {
+        ...baseProduct,
+        size: getProductSize(product.size, product.variants),
+        category: getProductCategory(product.size),
+        description: product.description?.trim() || baseProduct.tagline,
+        image: sortedImages[0]?.url || baseProduct.image,
+        notes: groupNotes(sortedNotes),
+        variantId: product.variants[0]?.id ?? null,
+    };
+}
+
+async function readJson<T>(url: string, fallbackMessage: string): Promise<T> {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        let message = fallbackMessage;
+
+        try {
+            const payload = (await response.json()) as ApiErrorResponse;
+            const apiMessage = payload.error ?? payload.message;
+
+            if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
+                message = apiMessage;
+            } else if (response.status === 404) {
+                message = 'Product not found.';
+            }
+        } catch {
+            if (response.status === 404) {
+                message = 'Product not found.';
+            }
+        }
+
+        throw new Error(message);
+    }
+
+    return (await response.json()) as T;
+}
+
+async function fetchProductsFromApi() {
+    const payload = await readJson<ProductListResponse>(PRODUCTS_ENDPOINT, 'Unable to load the collection right now.');
+    const mappedProducts = payload.data.map(mapProductSummary);
+
+    productsCache = mappedProducts;
+
+    return mappedProducts;
+}
+
+async function fetchProductFromApi(slug: string) {
+    const payload = await readJson<ProductDetailResponse>(
+        `${PRODUCTS_ENDPOINT}/${encodeURIComponent(slug)}`,
+        'Unable to load this product right now.',
+    );
+    const productIndex = productsCache?.findIndex((product) => product.id === slug);
+    const mappedProduct = mapProductDetail(payload.data, productIndex);
+
+    productDetailCache.set(slug, mappedProduct);
+
+    if (productsCache) {
+        productsCache = productsCache.map((product) => (product.id === slug ? { ...product, ...mappedProduct } : product));
+    }
+
+    return mappedProduct;
+}
+
+function loadProducts() {
+    if (productsCache !== null) {
+        return Promise.resolve(productsCache);
+    }
+
+    if (productsPromise === null) {
+        productsPromise = fetchProductsFromApi().finally(() => {
+            productsPromise = null;
+        });
+    }
+
+    return productsPromise;
+}
+
+function loadProduct(slug: string) {
+    const cachedProduct = productDetailCache.get(slug);
+
+    if (cachedProduct) {
+        return Promise.resolve(cachedProduct);
+    }
+
+    const pendingRequest = productDetailPromiseCache.get(slug);
+
+    if (pendingRequest) {
+        return pendingRequest;
+    }
+
+    const nextRequest = fetchProductFromApi(slug).finally(() => {
+        productDetailPromiseCache.delete(slug);
+    });
+
+    productDetailPromiseCache.set(slug, nextRequest);
+
+    return nextRequest;
+}
+
+export function useStoreProducts(): UseStoreProductsResult {
+    const [products, setProducts] = useState<StoreProduct[]>(() => productsCache ?? []);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(() => productsCache === null);
+
+    useEffect(() => {
+        if (productsCache !== null) {
+            return;
+        }
+
+        let isCancelled = false;
+
+        void loadProducts()
+            .then((nextProducts) => {
+                if (isCancelled) {
+                    return;
+                }
+
+                setProducts(nextProducts);
+                setError(null);
+                setIsLoading(false);
+            })
+            .catch((loadError) => {
+                if (isCancelled) {
+                    return;
+                }
+
+                setError(loadError instanceof Error ? loadError.message : 'Unable to load the collection right now.');
+                setIsLoading(false);
+            });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
+    return {
+        products,
+        isLoading,
+        error,
+    };
+}
+
+export function useStoreProduct(slug: string | undefined): UseStoreProductResult {
+    const cachedSummary = slug ? productsCache?.find((product) => product.id === slug) ?? null : null;
+    const cachedProduct = slug ? productDetailCache.get(slug) ?? cachedSummary : null;
+    const [product, setProduct] = useState<StoreProduct | null>(cachedProduct);
+    const [error, setError] = useState<string | null>(slug ? null : 'Product not found.');
+    const [isLoading, setIsLoading] = useState(() => Boolean(slug) && !productDetailCache.has(slug));
+
+    useEffect(() => {
+        if (!slug || productDetailCache.has(slug)) {
+            return;
+        }
+
+        let isCancelled = false;
+
+        void loadProduct(slug)
+            .then((nextProduct) => {
+                if (isCancelled) {
+                    return;
+                }
+
+                setProduct(nextProduct);
+                setError(null);
+                setIsLoading(false);
+            })
+            .catch((loadError) => {
+                if (isCancelled) {
+                    return;
+                }
+
+                setError(loadError instanceof Error ? loadError.message : 'Unable to load this product right now.');
+                setIsLoading(false);
+            });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [slug]);
+
+    return {
+        product,
+        isLoading,
+        error,
+    };
+}
+
+export function getFeaturedProducts(products: StoreProduct[], limit = 3) {
+    const discoveryProduct = getDiscoveryProduct(products);
+    const filteredProducts = discoveryProduct
+        ? products.filter((product) => product.id !== discoveryProduct.id)
+        : products;
+
+    return filteredProducts.slice(0, limit);
+}
+
+export function getDiscoveryProduct(products: StoreProduct[]) {
+    return (
+        products.find((product) => {
+            const normalizedId = product.id.toLowerCase();
+            const normalizedName = product.displayName.toLowerCase();
+
+            return normalizedId.includes('discovery') || normalizedName.includes('discovery');
+        }) ?? null
+    );
+}

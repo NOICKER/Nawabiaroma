@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
-import { allowedUploadContentTypes, type UploadUrlRequest } from '../models/types.js';
+import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
 import {
     createAdminArticleRecord,
     createAdminPageRecord,
@@ -36,7 +36,7 @@ const productPayloadSchema = z.object({
 
 const orderUpdateSchema = z
     .object({
-        status: z.enum(['pending', 'paid', 'shipped']).optional(),
+        status: z.enum(orderStatuses).optional(),
         trackingNumber: z.string().min(1).nullable().optional(),
     })
     .refine((value) => value.status !== undefined || value.trackingNumber !== undefined, {
