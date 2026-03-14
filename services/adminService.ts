@@ -1,5 +1,5 @@
 import { HttpError } from '../middleware/errorHandler.js';
-import type { OrderStatus } from '../models/types.js';
+import type { FragranceNoteType, OrderStatus } from '../models/types.js';
 import { query } from '../server/config/database.js';
 
 interface ProductPayload {
@@ -32,6 +32,34 @@ interface PagePayload {
     slug: string;
     title: string;
     contentHtml?: string | null;
+}
+
+interface ProductVariantPayload {
+    sku: string;
+    sizeLabel: string;
+    priceOverride?: number | null;
+    stockQuantity: number;
+}
+
+interface FragranceNotePayload {
+    type: FragranceNoteType;
+    note: string;
+    displayOrder: number;
+}
+
+async function assertProductExists(productId: number) {
+    const result = await query(
+        `
+            SELECT 1
+            FROM products
+            WHERE id = $1
+        `,
+        [productId],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Product not found.');
+    }
 }
 
 export async function listAdminProducts() {
@@ -138,6 +166,163 @@ export async function updateAdminProductRecord(id: number, payload: ProductPaylo
 
     if (result.rowCount === 0) {
         throw new HttpError(404, 'Product not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function deleteAdminProductRecord(id: number) {
+    const result = await query(
+        `
+            DELETE FROM products
+            WHERE id = $1
+            RETURNING id
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Product not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function createAdminProductVariantRecord(productId: number, payload: ProductVariantPayload) {
+    const result = await query(
+        `
+            INSERT INTO product_variants (
+                product_id,
+                sku,
+                size_label,
+                price_override,
+                stock_quantity
+            )
+            SELECT
+                p.id,
+                $2,
+                $3,
+                $4,
+                $5
+            FROM products p
+            WHERE p.id = $1
+            RETURNING
+                id,
+                product_id AS "productId",
+                sku,
+                size_label AS "sizeLabel",
+                price_override AS "priceOverride",
+                stock_quantity AS "stockQuantity"
+        `,
+        [productId, payload.sku, payload.sizeLabel, payload.priceOverride ?? null, payload.stockQuantity],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Product not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function updateAdminProductVariantRecord(productId: number, variantId: number, payload: ProductVariantPayload) {
+    await assertProductExists(productId);
+
+    const result = await query(
+        `
+            UPDATE product_variants
+            SET
+                sku = $3,
+                size_label = $4,
+                price_override = $5,
+                stock_quantity = $6
+            WHERE product_id = $1
+              AND id = $2
+            RETURNING
+                id,
+                product_id AS "productId",
+                sku,
+                size_label AS "sizeLabel",
+                price_override AS "priceOverride",
+                stock_quantity AS "stockQuantity"
+        `,
+        [productId, variantId, payload.sku, payload.sizeLabel, payload.priceOverride ?? null, payload.stockQuantity],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Variant not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function deleteAdminProductVariantRecord(productId: number, variantId: number) {
+    await assertProductExists(productId);
+
+    const result = await query(
+        `
+            DELETE FROM product_variants
+            WHERE product_id = $1
+              AND id = $2
+            RETURNING id
+        `,
+        [productId, variantId],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Variant not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function createAdminFragranceNoteRecord(productId: number, payload: FragranceNotePayload) {
+    const result = await query(
+        `
+            INSERT INTO fragrance_notes (
+                product_id,
+                type,
+                note,
+                display_order
+            )
+            SELECT
+                p.id,
+                $2,
+                $3,
+                $4
+            FROM products p
+            WHERE p.id = $1
+            RETURNING
+                id,
+                product_id AS "productId",
+                type,
+                note,
+                display_order AS "displayOrder"
+        `,
+        [productId, payload.type, payload.note, payload.displayOrder],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Product not found.');
+    }
+
+    return result.rows[0];
+}
+
+export async function deleteAdminFragranceNoteRecord(productId: number, noteId: number) {
+    await assertProductExists(productId);
+
+    const result = await query(
+        `
+            DELETE FROM fragrance_notes
+            WHERE product_id = $1
+              AND id = $2
+            RETURNING id
+        `,
+        [productId, noteId],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Fragrance note not found.');
     }
 
     return result.rows[0];
@@ -291,6 +476,23 @@ export async function updateAdminArticleRecord(id: number, payload: ArticlePaylo
     return result.rows[0];
 }
 
+export async function deleteAdminArticleRecord(id: number) {
+    const result = await query(
+        `
+            DELETE FROM articles
+            WHERE id = $1
+            RETURNING id
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Article not found.');
+    }
+
+    return result.rows[0];
+}
+
 export async function listAdminPages() {
     const result = await query(
         `
@@ -326,6 +528,23 @@ export async function createAdminPageRecord(payload: PagePayload) {
         `,
         [payload.slug, payload.title, payload.contentHtml ?? null],
     );
+
+    return result.rows[0];
+}
+
+export async function deleteAdminPageRecord(id: number) {
+    const result = await query(
+        `
+            DELETE FROM pages
+            WHERE id = $1
+            RETURNING id
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Page not found.');
+    }
 
     return result.rows[0];
 }

@@ -1,7 +1,15 @@
+import { useState } from 'react';
 import { ProductCard, ProductCardSkeleton, type Product } from '../components/ProductCard';
 import { useStoreProducts } from '../data/products';
 
+const filterCategories = ['Woody', 'Floral', 'Fresh', 'Oriental', 'Citrus'] as const;
+const activeFilterButtonClass =
+    "relative whitespace-nowrap text-sm font-medium text-[var(--color-primary)] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:bg-[var(--color-primary)] after:content-[''] dark:text-white dark:after:bg-white";
+const inactiveFilterButtonClass =
+    'whitespace-nowrap text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]';
+
 export function Shop() {
+    const [activeFilter, setActiveFilter] = useState<string>('All Scents');
     const { products, isLoading, error } = useStoreProducts();
     const cardProducts: Product[] = products.map((product) => ({
         id: product.id,
@@ -12,6 +20,10 @@ export function Shop() {
         glowColor: product.glowColor,
         delay: product.delay,
     }));
+    const filteredProducts =
+        activeFilter === 'All Scents'
+            ? cardProducts
+            : cardProducts.filter((product) => product.category.toLowerCase().includes(activeFilter.toLowerCase()));
 
     const columnClasses = [
         'flex flex-col gap-8 md:gap-10',
@@ -19,7 +31,7 @@ export function Shop() {
         'flex flex-col gap-8 md:gap-10 md:mt-4 lg:mt-24',
     ];
 
-    const columns = cardProducts.reduce<Product[][]>(
+    const columns = filteredProducts.reduce<Product[][]>(
         (productColumns, product, index) => {
             productColumns[index % productColumns.length].push(product);
             return productColumns;
@@ -39,19 +51,25 @@ export function Shop() {
             </header>
 
             <p className="mb-8 text-center font-mono text-[10px] uppercase tracking-[0.26em] text-[var(--text-muted)] sm:text-[11px] sm:tracking-[0.3em]">
-                {isLoading ? 'Loading the Debut Collection' : `The Debut Collection - ${cardProducts.length} Ensembles`}
+                {isLoading ? 'Loading the Debut Collection' : `The Debut Collection - ${filteredProducts.length} Ensembles`}
             </p>
 
             <div className="sticky top-20 z-20 mb-12 flex w-full justify-center opacity-0 animate-[fadeIn_1s_ease-out_0.2s_forwards] md:top-28 md:mb-16">
                 <div className="inline-flex w-full max-w-full rounded-[28px] glass-panel px-1 py-1.5 shadow-sm md:w-auto md:rounded-full md:px-6 md:py-3">
                     <div className="no-scrollbar flex items-center gap-5 overflow-x-auto px-3 md:gap-8 md:px-4">
-                        <button className="relative whitespace-nowrap text-sm font-medium text-[var(--color-primary)] transition-colors after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:bg-[var(--color-primary)] after:content-[''] dark:text-white dark:after:bg-white">
+                        <button
+                            className={activeFilter === 'All Scents' ? activeFilterButtonClass : inactiveFilterButtonClass}
+                            onClick={() => setActiveFilter('All Scents')}
+                            type="button"
+                        >
                             All Scents
                         </button>
-                        {['Woody', 'Floral', 'Fresh', 'Oriental', 'Citrus'].map((category) => (
+                        {filterCategories.map((category) => (
                             <button
                                 key={category}
-                                className="whitespace-nowrap text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]"
+                                className={activeFilter === category ? activeFilterButtonClass : inactiveFilterButtonClass}
+                                onClick={() => setActiveFilter(category)}
+                                type="button"
                             >
                                 {category}
                             </button>
@@ -71,7 +89,7 @@ export function Shop() {
                             ? Array.from({ length: 6 }, (_, index) => (
                                   <ProductCardSkeleton key={index} delay={`${0.2 + index * 0.1}s`} />
                               ))
-                            : cardProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+                            : filteredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
                     </div>
 
                     <div className="hidden w-full gap-8 md:grid md:grid-cols-2 md:gap-10 lg:grid-cols-3">

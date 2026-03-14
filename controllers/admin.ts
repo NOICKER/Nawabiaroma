@@ -5,8 +5,15 @@ import { HttpError } from '../middleware/errorHandler.js';
 import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
 import {
     createAdminArticleRecord,
+    createAdminFragranceNoteRecord,
     createAdminPageRecord,
     createAdminProductRecord,
+    createAdminProductVariantRecord,
+    deleteAdminArticleRecord,
+    deleteAdminFragranceNoteRecord,
+    deleteAdminPageRecord,
+    deleteAdminProductRecord,
+    deleteAdminProductVariantRecord,
     listAdminArticles,
     listAdminOrders,
     listAdminPages,
@@ -15,6 +22,7 @@ import {
     updateAdminOrderRecord,
     updateAdminPageRecord,
     updateAdminProductRecord,
+    updateAdminProductVariantRecord,
 } from '../services/adminService.js';
 import { createProductImageUploadUrl } from '../services/storageService.js';
 
@@ -32,6 +40,13 @@ const productPayloadSchema = z.object({
     size: z.string().nullable().optional(),
     basePrice: z.coerce.number().positive(),
     isActive: z.boolean().default(true),
+});
+
+const productVariantPayloadSchema = z.object({
+    sku: z.string().min(1),
+    sizeLabel: z.string().min(1),
+    priceOverride: z.coerce.number().positive().nullable().optional(),
+    stockQuantity: z.coerce.number().int().min(0),
 });
 
 const orderUpdateSchema = z
@@ -57,6 +72,12 @@ const pagePayloadSchema = z.object({
     slug: z.string().min(1),
     title: z.string().min(1),
     contentHtml: z.string().nullable().optional(),
+});
+
+const fragranceNotePayloadSchema = z.object({
+    type: z.enum(['top', 'heart', 'base']),
+    note: z.string().min(1),
+    displayOrder: z.coerce.number().int().min(0),
 });
 
 function getSingleParam(value: string | string[] | undefined, name: string) {
@@ -119,6 +140,54 @@ export const updateAdminProduct = asyncHandler(async (req: Request, res: Respons
     res.status(200).json({ data: product });
 });
 
+export const deleteAdminProduct = asyncHandler(async (req: Request, res: Response) => {
+    const deletedProduct = await deleteAdminProductRecord(parseId(req.params.id));
+    res.status(200).json({ data: deletedProduct });
+});
+
+export const createAdminProductVariant = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = productVariantPayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid product variant payload.', parsed.error.flatten());
+    }
+
+    const variant = await createAdminProductVariantRecord(parseId(req.params.id), parsed.data);
+    res.status(201).json({ data: variant });
+});
+
+export const updateAdminProductVariant = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = productVariantPayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid product variant payload.', parsed.error.flatten());
+    }
+
+    const variant = await updateAdminProductVariantRecord(parseId(req.params.id), parseId(req.params.variantId), parsed.data);
+    res.status(200).json({ data: variant });
+});
+
+export const deleteAdminProductVariant = asyncHandler(async (req: Request, res: Response) => {
+    const deletedVariant = await deleteAdminProductVariantRecord(parseId(req.params.id), parseId(req.params.variantId));
+    res.status(200).json({ data: deletedVariant });
+});
+
+export const createAdminFragranceNote = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = fragranceNotePayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid fragrance note payload.', parsed.error.flatten());
+    }
+
+    const note = await createAdminFragranceNoteRecord(parseId(req.params.id), parsed.data);
+    res.status(201).json({ data: note });
+});
+
+export const deleteAdminFragranceNote = asyncHandler(async (req: Request, res: Response) => {
+    const deletedNote = await deleteAdminFragranceNoteRecord(parseId(req.params.id), parseId(req.params.noteId));
+    res.status(200).json({ data: deletedNote });
+});
+
 export const getAdminOrders = asyncHandler(async (_req: Request, res: Response) => {
     const orders = await listAdminOrders();
     res.status(200).json({ data: orders });
@@ -162,6 +231,11 @@ export const updateAdminArticle = asyncHandler(async (req: Request, res: Respons
     res.status(200).json({ data: article });
 });
 
+export const deleteAdminArticle = asyncHandler(async (req: Request, res: Response) => {
+    const deletedArticle = await deleteAdminArticleRecord(parseId(req.params.id));
+    res.status(200).json({ data: deletedArticle });
+});
+
 export const getAdminPages = asyncHandler(async (_req: Request, res: Response) => {
     const pages = await listAdminPages();
     res.status(200).json({ data: pages });
@@ -187,4 +261,9 @@ export const updateAdminPage = asyncHandler(async (req: Request, res: Response) 
 
     const page = await updateAdminPageRecord(parseId(req.params.id), parsed.data);
     res.status(200).json({ data: page });
+});
+
+export const deleteAdminPage = asyncHandler(async (req: Request, res: Response) => {
+    const deletedPage = await deleteAdminPageRecord(parseId(req.params.id));
+    res.status(200).json({ data: deletedPage });
 });

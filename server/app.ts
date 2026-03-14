@@ -6,6 +6,7 @@ import { cartRouter } from '../routes/cart.js';
 import { checkoutRouter } from '../routes/checkout.js';
 import { contentRouter } from '../routes/content.js';
 import { adminRouter } from '../routes/admin.js';
+import { authRouter } from '../routes/auth.js';
 import { ordersRouter } from '../routes/orders.js';
 import { productsRouter } from '../routes/products.js';
 import { webhooksRouter } from '../routes/webhooks.js';
@@ -47,6 +48,7 @@ export function createApp() {
 
     app.use('/api/webhooks', webhooksRouter);
     app.use(express.json({ limit: '1mb' }));
+    app.use('/api/auth', authRouter);
 
     app.use('/api/', apiRateLimit);
 

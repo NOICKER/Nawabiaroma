@@ -30,6 +30,8 @@ const envSchema = z.object({
     CHECKOUT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
     ADMIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
     ADMIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    ADMIN_EMAIL: z.string().email(),
+    ADMIN_PASSWORD_HASH: z.string().min(1),
     STRIPE_SECRET_KEY: z.string().min(1),
     STRIPE_WEBHOOK_SECRET: z.string().min(1),
     STRIPE_CURRENCY: z.string().default('inr'),
@@ -42,6 +44,7 @@ const envSchema = z.object({
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     S3_BUCKET_NAME: z.string().optional(),
+    S3_ENDPOINT: z.string().optional(),
     S3_PUBLIC_BASE_URL: z.string().optional(),
     S3_UPLOAD_PREFIX: z.string().default('products'),
 });
