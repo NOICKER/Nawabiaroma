@@ -47,8 +47,8 @@ interface CartSnapshotMetadataItem {
 
 const METADATA_CHUNK_SIZE = 450;
 
-function calculateShipping(_subtotal: number) {
-    return 0;
+function calculateShipping(subtotal: number) {
+    return Number(subtotal) >= 999 ? 0 : 99;
 }
 
 function serializeCartItems(items: PricedCartItem[]) {

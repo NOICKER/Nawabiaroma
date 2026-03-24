@@ -15,44 +15,56 @@ const GLOW_GRADIENTS = [
     'bg-gradient-to-tr from-blue-50 to-white dark:from-sky-500/5 dark:to-sky-500/5',
 ] as const;
 
+type ApiNumericValue = number | string | null | undefined;
+
 interface ProductSummaryApi {
-    id: number;
+    id: number | string;
     slug: string;
     name: string;
-    subName: string | null;
-    tagline: string | null;
-    size: string | null;
-    basePrice: number;
-    primaryImageUrl: string | null;
+    subName?: string | null;
+    tagline?: string | null;
+    size?: string | null;
+    basePrice?: ApiNumericValue;
+    base_price?: ApiNumericValue;
+    primaryImageUrl?: string | null;
+    image?: string | null;
 }
 
 interface ProductVariantApi {
-    id: number;
+    id?: number | string;
+    variantId?: number | string;
     sku: string;
-    sizeLabel: string;
-    price: number;
-    stockQuantity: number;
+    sizeLabel?: string | null;
+    size_label?: string | null;
+    price?: ApiNumericValue;
+    price_override?: ApiNumericValue;
+    stockQuantity?: ApiNumericValue;
+    stock_quantity?: ApiNumericValue;
 }
 
 interface ProductNoteApi {
-    id: number;
+    id: number | string;
     type: 'top' | 'heart' | 'base';
     note: string;
-    displayOrder: number;
+    displayOrder?: ApiNumericValue;
+    display_order?: ApiNumericValue;
 }
 
 interface ProductImageApi {
-    id: number;
-    url: string;
-    isPrimary: boolean;
-    displayOrder: number;
+    id: number | string;
+    url?: string | null;
+    image?: string | null;
+    isPrimary?: boolean;
+    is_primary?: boolean;
+    displayOrder?: ApiNumericValue;
+    display_order?: ApiNumericValue;
 }
 
 interface ProductDetailApi extends ProductSummaryApi {
-    description: string | null;
-    variants: ProductVariantApi[];
-    notes: ProductNoteApi[];
-    images: ProductImageApi[];
+    description?: string | null;
+    variants?: ProductVariantApi[] | null;
+    notes?: ProductNoteApi[] | null;
+    images?: ProductImageApi[] | null;
 }
 
 interface ProductListResponse {
@@ -66,6 +78,46 @@ interface ProductDetailResponse {
 interface ApiErrorResponse {
     error?: string;
     message?: string;
+}
+
+interface NormalizedProductSummaryApi {
+    id: number;
+    slug: string;
+    name: string;
+    subName: string | null;
+    tagline: string | null;
+    size: string | null;
+    basePrice: number;
+    primaryImageUrl: string;
+}
+
+interface NormalizedProductVariantApi {
+    id: number;
+    sku: string;
+    sizeLabel: string;
+    price: number;
+    stockQuantity: number;
+}
+
+interface NormalizedProductNoteApi {
+    id: number;
+    type: 'top' | 'heart' | 'base';
+    note: string;
+    displayOrder: number;
+}
+
+interface NormalizedProductImageApi {
+    id: number;
+    url: string;
+    isPrimary: boolean;
+    displayOrder: number;
+}
+
+interface NormalizedProductDetailApi extends NormalizedProductSummaryApi {
+    description: string | null;
+    variants: NormalizedProductVariantApi[];
+    notes: NormalizedProductNoteApi[];
+    images: NormalizedProductImageApi[];
 }
 
 export interface StoreProduct {
@@ -113,6 +165,15 @@ function formatPrice(value: number) {
     return `\u20B9${value.toLocaleString('en-IN')}`;
 }
 
+function toNumber(value: ApiNumericValue, fallback = 0) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+function normalizeImageValue(value: string | null | undefined) {
+    return value ?? '';
+}
+
 function getGlowColor(index: number) {
     return GLOW_GRADIENTS[index % GLOW_GRADIENTS.length];
 }
@@ -143,7 +204,58 @@ function getProductNumber(id: number, index?: number) {
     return `N\u00B0. ${String(sequence).padStart(2, '0')}`;
 }
 
-function groupNotes(notes: ProductNoteApi[]): StoreProduct['notes'] {
+function normalizeProductSummaryApi(product: ProductSummaryApi): NormalizedProductSummaryApi {
+    return {
+        id: toNumber(product.id),
+        slug: product.slug,
+        name: product.name,
+        subName: product.subName ?? null,
+        tagline: product.tagline ?? null,
+        size: product.size ?? null,
+        basePrice: toNumber(product.basePrice ?? product.base_price),
+        primaryImageUrl: normalizeImageValue(product.primaryImageUrl ?? product.image),
+    };
+}
+
+function normalizeProductVariantApi(variant: ProductVariantApi): NormalizedProductVariantApi {
+    return {
+        id: toNumber(variant.id ?? variant.variantId),
+        sku: variant.sku,
+        sizeLabel: variant.sizeLabel ?? variant.size_label ?? '',
+        price: toNumber(variant.price ?? variant.price_override),
+        stockQuantity: toNumber(variant.stockQuantity ?? variant.stock_quantity),
+    };
+}
+
+function normalizeProductNoteApi(note: ProductNoteApi): NormalizedProductNoteApi {
+    return {
+        id: toNumber(note.id),
+        type: note.type,
+        note: note.note,
+        displayOrder: toNumber(note.displayOrder ?? note.display_order),
+    };
+}
+
+function normalizeProductImageApi(image: ProductImageApi): NormalizedProductImageApi {
+    return {
+        id: toNumber(image.id),
+        url: normalizeImageValue(image.url ?? image.image),
+        isPrimary: image.isPrimary ?? image.is_primary ?? false,
+        displayOrder: toNumber(image.displayOrder ?? image.display_order),
+    };
+}
+
+function normalizeProductDetailApi(product: ProductDetailApi): NormalizedProductDetailApi {
+    return {
+        ...normalizeProductSummaryApi(product),
+        description: product.description ?? null,
+        variants: (product.variants ?? []).map(normalizeProductVariantApi),
+        notes: (product.notes ?? []).map(normalizeProductNoteApi),
+        images: (product.images ?? []).map(normalizeProductImageApi),
+    };
+}
+
+function groupNotes(notes: NormalizedProductNoteApi[]): StoreProduct['notes'] {
     return notes.reduce<StoreProduct['notes']>(
         (groupedNotes, note) => {
             groupedNotes[note.type].push(note.note);
@@ -157,7 +269,7 @@ function groupNotes(notes: ProductNoteApi[]): StoreProduct['notes'] {
     );
 }
 
-function createBaseStoreProduct(product: ProductSummaryApi, index: number): StoreProduct {
+function createBaseStoreProduct(product: NormalizedProductSummaryApi, index: number): StoreProduct {
     const displayName = getDisplayName(product.name, product.subName);
     const size = getProductSize(product.size);
 
@@ -187,28 +299,29 @@ function createBaseStoreProduct(product: ProductSummaryApi, index: number): Stor
 }
 
 function mapProductSummary(product: ProductSummaryApi, index: number) {
-    return createBaseStoreProduct(product, index);
+    return createBaseStoreProduct(normalizeProductSummaryApi(product), index);
 }
 
 function mapProductDetail(product: ProductDetailApi, index?: number) {
-    const baseProduct = createBaseStoreProduct(product, Math.max(index ?? product.id - 1, 0));
-    const sortedImages = [...product.images].sort((left, right) => {
+    const normalizedProduct = normalizeProductDetailApi(product);
+    const baseProduct = createBaseStoreProduct(normalizedProduct, Math.max(index ?? normalizedProduct.id - 1, 0));
+    const sortedImages = [...normalizedProduct.images].sort((left, right) => {
         if (left.isPrimary !== right.isPrimary) {
             return left.isPrimary ? -1 : 1;
         }
 
         return left.displayOrder - right.displayOrder;
     });
-    const sortedNotes = [...product.notes].sort((left, right) => left.displayOrder - right.displayOrder);
+    const sortedNotes = [...normalizedProduct.notes].sort((left, right) => left.displayOrder - right.displayOrder);
 
     return {
         ...baseProduct,
-        size: getProductSize(product.size, product.variants),
-        category: getProductCategory(product.size),
-        description: product.description?.trim() || baseProduct.tagline,
-        image: sortedImages[0]?.url || baseProduct.image,
+        size: getProductSize(normalizedProduct.size, normalizedProduct.variants),
+        category: getProductCategory(normalizedProduct.size),
+        description: normalizedProduct.description?.trim() || baseProduct.tagline,
+        image: sortedImages[0]?.url ?? baseProduct.image ?? '',
         notes: groupNotes(sortedNotes),
-        variantId: product.variants[0]?.id ?? null,
+        variantId: normalizedProduct.variants[0]?.id ? Number(normalizedProduct.variants[0].id) : null,
     };
 }
 
@@ -349,7 +462,7 @@ export function useStoreProduct(slug: string | undefined): UseStoreProductResult
     const cachedProduct = slug ? productDetailCache.get(slug) ?? cachedSummary : null;
     const [product, setProduct] = useState<StoreProduct | null>(cachedProduct);
     const [error, setError] = useState<string | null>(slug ? null : 'Product not found.');
-    const [isLoading, setIsLoading] = useState(() => Boolean(slug) && !productDetailCache.has(slug));
+    const [isLoading, setIsLoading] = useState(() => (slug ? !productDetailCache.has(slug) : false));
 
     useEffect(() => {
         if (!slug || productDetailCache.has(slug)) {
