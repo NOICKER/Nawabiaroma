@@ -11,8 +11,10 @@ export interface CreatePaymentIntentInput {
 }
 
 export async function createPaymentIntent(input: CreatePaymentIntentInput) {
+    const totalAmount = Number(input.amount);
+
     return stripe.paymentIntents.create({
-        amount: Math.round(input.amount * 100),
+        amount: Math.round(totalAmount * 100),
         currency: env.STRIPE_CURRENCY,
         receipt_email: input.customerEmail,
         automatic_payment_methods: {

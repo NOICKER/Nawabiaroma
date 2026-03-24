@@ -17,9 +17,10 @@ interface CartOrderItemRow {
     productId: number | string;
     productName: string;
     variant: string;
-    quantity: number;
+    quantity: number | string;
     price: number | string;
     subtotal: number | string;
+    stockQuantity: number | string;
 }
 
 interface AddressRow {
@@ -60,16 +61,9 @@ interface OrderItemRow {
     productId: number | string;
     productName: string;
     variant: string;
-    quantity: number;
+    quantity: number | string;
     price: number | string;
     subtotal: number | string;
-}
-
-interface InventoryRow {
-    id: number | string;
-    variantId: number | string;
-    quantityAvailable: number;
-    locationId: string;
 }
 
 function throwInsufficientStock(variantId: number): never {
@@ -104,7 +98,7 @@ function mapOrderItem(row: OrderItemRow): CreatedOrderItem {
         productId: Number(row.productId),
         productName: row.productName,
         variant: row.variant,
-        quantity: row.quantity,
+        quantity: Number(row.quantity),
         price: Number(row.price),
         subtotal: Number(row.subtotal),
     };
@@ -350,7 +344,8 @@ export async function createOrderFromCartSession(sessionId: string, addressId: n
                     pv.size_label AS variant,
                     ci.quantity,
                     COALESCE(pv.price_override, p.base_price) AS price,
-                    COALESCE(pv.price_override, p.base_price) * ci.quantity AS subtotal
+                    COALESCE(pv.price_override, p.base_price) * ci.quantity AS subtotal,
+                    pv.stock_quantity AS "stockQuantity"
                 FROM cart_items ci
                 INNER JOIN product_variants pv ON pv.id = ci.product_variant_id
                 INNER JOIN products p ON p.id = pv.product_id
@@ -364,95 +359,24 @@ export async function createOrderFromCartSession(sessionId: string, addressId: n
             throw new HttpError(400, 'Cart has no items.');
         }
 
+        for (const row of cartItemsResult.rows) {
+            if (Number(row.stockQuantity) < Number(row.quantity)) {
+                throwInsufficientStock(Number(row.variantId));
+            }
+        }
+
         const items = cartItemsResult.rows.map<CreatedOrderItem>((row) => ({
             variantId: Number(row.variantId),
             productId: Number(row.productId),
             productName: row.productName,
             variant: row.variant,
-            quantity: row.quantity,
+            quantity: Number(row.quantity),
             price: Number(row.price),
             subtotal: Number(row.subtotal),
         }));
 
-        const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-        const total = subtotal;
-        const variantIds = [...new Set(items.map((item) => item.variantId))].sort((left, right) => left - right);
-        const inventoryResult = await client.query<InventoryRow>(
-            `
-                SELECT
-                    id,
-                    product_variant_id AS "variantId",
-                    quantity_available AS "quantityAvailable",
-                    location_id AS "locationId"
-                FROM inventory
-                WHERE product_variant_id = ANY($1::bigint[])
-                ORDER BY
-                    product_variant_id ASC,
-                    CASE WHEN location_id = 'default' THEN 0 ELSE 1 END,
-                    id ASC
-                FOR UPDATE
-            `,
-            [variantIds],
-        );
-        const inventoryByVariantId = new Map<number, InventoryRow[]>();
-
-        for (const row of inventoryResult.rows) {
-            const variantId = Number(row.variantId);
-            const inventories = inventoryByVariantId.get(variantId) ?? [];
-
-            inventories.push(row);
-            inventoryByVariantId.set(variantId, inventories);
-        }
-
-        for (const item of items) {
-            const inventories = inventoryByVariantId.get(item.variantId) ?? [];
-            const totalAvailable = inventories.reduce((sum, inventory) => sum + inventory.quantityAvailable, 0);
-
-            if (totalAvailable < item.quantity) {
-                throwInsufficientStock(item.variantId);
-            }
-        }
-
-        for (const item of items) {
-            const inventories = inventoryByVariantId.get(item.variantId);
-            let remainingQuantity = item.quantity;
-
-            if (!inventories || inventories.length === 0) {
-                throwInsufficientStock(item.variantId);
-            }
-
-            for (const inventory of inventories) {
-                if (remainingQuantity === 0) {
-                    break;
-                }
-
-                const quantityToDeduct = Math.min(inventory.quantityAvailable, remainingQuantity);
-
-                if (quantityToDeduct === 0) {
-                    continue;
-                }
-
-                const inventoryUpdate = await client.query(
-                    `
-                        UPDATE inventory
-                        SET quantity_available = quantity_available - $2
-                        WHERE id = $1
-                          AND quantity_available >= $2
-                    `,
-                    [Number(inventory.id), quantityToDeduct],
-                );
-
-                if (inventoryUpdate.rowCount === 0) {
-                    throwInsufficientStock(item.variantId);
-                }
-
-                remainingQuantity -= quantityToDeduct;
-            }
-
-            if (remainingQuantity > 0) {
-                throwInsufficientStock(item.variantId);
-            }
-        }
+        const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+        const total = Number(subtotal);
 
         const orderInsert = await client.query<{ id: number | string }>(
             `
@@ -501,7 +425,12 @@ export async function createOrderFromCartSession(sessionId: string, addressId: n
 }
 
 export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.PaymentIntent): Promise<OrderFulfillmentResult> {
-    const pricedCartItems = parseCartSnapshotMetadata(paymentIntent.metadata);
+    const pricedCartItems = parseCartSnapshotMetadata(paymentIntent.metadata).map((item) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        lineTotal: Number(item.lineTotal),
+    }));
     const shippingAddress = parseShippingAddressMetadata(paymentIntent.metadata);
     const customerEmail = paymentIntent.metadata.customer_email || paymentIntent.receipt_email || undefined;
     const orderReference = paymentIntent.metadata.order_reference || paymentIntent.id;
@@ -521,7 +450,7 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
             return {
                 orderId: Number(existingOrder.rows[0].id),
                 orderReference,
-                totalAmount: Number(paymentIntent.amount_received || paymentIntent.amount) / 100,
+                totalAmount: Number(paymentIntent.amount_received ?? paymentIntent.amount) / 100,
                 items: [],
                 customerEmail,
                 alreadyProcessed: true,
@@ -529,8 +458,8 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
         }
 
         const customerId = await upsertCustomer(client, customerEmail, paymentIntent.customer);
-        const subtotalAmount = pricedCartItems.reduce((sum, item) => sum + item.lineTotal, 0);
-        const totalAmount = Number(paymentIntent.amount_received || paymentIntent.amount) / 100;
+        const subtotalAmount = pricedCartItems.reduce((sum, item) => sum + Number(item.lineTotal), 0);
+        const totalAmount = Number(paymentIntent.amount_received ?? paymentIntent.amount) / 100;
         const orderInsert = await client.query<{ id: number | string }>(
             `
                 INSERT INTO orders (
@@ -550,6 +479,8 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
         const orderId = Number(orderInsert.rows[0].id);
 
         for (const item of pricedCartItems) {
+            const quantity = Number(item.quantity);
+            const unitPrice = Number(item.unitPrice);
             const inventoryUpdate = await client.query(
                 `
                     UPDATE product_variants
@@ -557,7 +488,7 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
                     WHERE id = $2
                       AND stock_quantity >= $1
                 `,
-                [item.quantity, item.variantId],
+                [quantity, item.variantId],
             );
 
             if (inventoryUpdate.rowCount === 0) {
@@ -574,7 +505,7 @@ export async function fulfillSuccessfulPaymentIntent(paymentIntent: Stripe.Payme
                     )
                     VALUES ($1, $2, $3, $4)
                 `,
-                [orderId, item.variantId, item.quantity, item.unitPrice],
+                [orderId, item.variantId, quantity, unitPrice],
             );
         }
 

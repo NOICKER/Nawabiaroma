@@ -1,20 +1,24 @@
 import { Router } from 'express';
 import {
+    createAdminProductImage,
     createAdminArticle,
     createAdminFragranceNote,
     createAdminPage,
     createAdminProduct,
     createAdminProductVariant,
     createUploadUrl,
+    deleteAdminProductImage,
     deleteAdminArticle,
     deleteAdminFragranceNote,
     deleteAdminPage,
     deleteAdminProduct,
     deleteAdminProductVariant,
+    getAdminProduct,
     getAdminArticles,
     getAdminOrders,
     getAdminPages,
     getAdminProducts,
+    setAdminProductPrimaryImage,
     updateAdminArticle,
     updateAdminOrder,
     updateAdminPage,
@@ -27,9 +31,13 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAdminAuth);
 adminRouter.get('/products', getAdminProducts);
+adminRouter.get('/products/:id', getAdminProduct);
 adminRouter.post('/products', createAdminProduct);
 adminRouter.put('/products/:id', updateAdminProduct);
 adminRouter.delete('/products/:id', deleteAdminProduct);
+adminRouter.post('/products/:id/images', createAdminProductImage);
+adminRouter.delete('/products/:id/images/:imageId', deleteAdminProductImage);
+adminRouter.post('/products/:id/images/:imageId/primary', setAdminProductPrimaryImage);
 adminRouter.post('/products/:id/variants', createAdminProductVariant);
 adminRouter.put('/products/:id/variants/:variantId', updateAdminProductVariant);
 adminRouter.delete('/products/:id/variants/:variantId', deleteAdminProductVariant);

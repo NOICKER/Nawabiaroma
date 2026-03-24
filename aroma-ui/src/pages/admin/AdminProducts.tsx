@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
 const PRODUCTS_ENDPOINT = '/api/admin/products';
-const PUBLIC_PRODUCTS_ENDPOINT = '/api/products';
 const ADMIN_UPLOAD_ENDPOINT = '/api/admin/upload';
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'] as const;
 const fieldClassName =
@@ -86,6 +85,8 @@ interface FragranceNote {
 interface ProductManagementDetail {
     variants: ProductVariant[];
     notes: FragranceNote[];
+    images: AdminProductImage[];
+    primaryImageUrl: string | null;
 }
 
 interface VariantPayload {
@@ -204,6 +205,10 @@ function formatVariantPriceOverride(variant: ProductVariant, basePrice: number) 
 function getInitialPrimaryImageUrl(product: AdminProduct) {
     const primaryFromImages = (product.images ?? []).find((image) => image.isPrimary)?.url ?? null;
     return product.primaryImageUrl ?? primaryFromImages;
+}
+
+function getPrimaryImageUrl(images: AdminProductImage[]) {
+    return sortImages(images).find((image) => image.isPrimary)?.url ?? null;
 }
 
 function sortImages(images: AdminProductImage[]) {
@@ -371,8 +376,13 @@ async function fetchProducts(token: string) {
     return readApiPayload<AdminProduct[]>(response);
 }
 
-async function fetchProductManagementDetail(slug: string) {
-    const response = await fetch(`${PUBLIC_PRODUCTS_ENDPOINT}/${encodeURIComponent(slug)}`);
+async function fetchProductManagementDetail(token: string, productId: number) {
+    const response = await fetch(`${PRODUCTS_ENDPOINT}/${productId}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
     return readApiPayload<ProductManagementDetail>(response);
 }
 
@@ -444,7 +454,29 @@ async function attachProductImage(token: string, productId: number, publicUrl: s
         }),
     });
 
-    return readApiPayload<unknown>(response);
+    return readApiPayload<AdminProductImage>(response);
+}
+
+async function deleteProductImage(token: string, productId: number, imageId: number) {
+    const response = await fetch(`${PRODUCTS_ENDPOINT}/${productId}/images/${imageId}`, {
+        method: 'DELETE',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    return readApiMutation(response);
+}
+
+async function setProductPrimaryImage(token: string, productId: number, imageId: number) {
+    const response = await fetch(`${PRODUCTS_ENDPOINT}/${productId}/images/${imageId}/primary`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    return readApiPayload<AdminProductImage>(response);
 }
 
 async function createProductVariant(token: string, productId: number, payload: VariantPayload) {
@@ -553,6 +585,8 @@ export function AdminProducts() {
     const [editingProductId, setEditingProductId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [pendingPrimaryImageId, setPendingPrimaryImageId] = useState<number | null>(null);
+    const [pendingImageDeleteId, setPendingImageDeleteId] = useState<number | null>(null);
     const [pendingToggleId, setPendingToggleId] = useState<number | null>(null);
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
     const [hasManualSlug, setHasManualSlug] = useState(false);
@@ -632,7 +666,26 @@ export function AdminProducts() {
         setPendingNoteDeleteId(null);
     };
 
-    const loadProductManagementDetail = async (product: AdminProduct, resetExistingData = false) => {
+    const applyProductImages = (productId: number, images: AdminProductImage[]) => {
+        const sortedImages = sortImages(images);
+        const nextPrimaryImageUrl = getPrimaryImageUrl(sortedImages);
+
+        setProductImages(sortedImages);
+        setSelectedPrimaryImageUrl(nextPrimaryImageUrl);
+        setProducts((currentProducts) =>
+            currentProducts.map((product) =>
+                product.id === productId
+                    ? {
+                          ...product,
+                          primaryImageUrl: nextPrimaryImageUrl,
+                          images: sortedImages,
+                      }
+                    : product,
+            ),
+        );
+    };
+
+    const loadProductManagementDetail = async (productId: number, resetExistingData = false) => {
         const requestId = detailRequestIdRef.current + 1;
         detailRequestIdRef.current = requestId;
         setIsLoadingProductDetail(true);
@@ -641,10 +694,15 @@ export function AdminProducts() {
         if (resetExistingData) {
             setProductVariants([]);
             setFragranceNotes([]);
+            setProductImages([]);
         }
 
         try {
-            const detail = await fetchProductManagementDetail(product.slug);
+            if (!token) {
+                throw new Error('Admin session missing.');
+            }
+
+            const detail = await fetchProductManagementDetail(token, productId);
 
             if (detailRequestIdRef.current !== requestId) {
                 return;
@@ -652,6 +710,7 @@ export function AdminProducts() {
 
             setProductVariants(detail.variants);
             setFragranceNotes(sortFragranceNotes(detail.notes));
+            applyProductImages(productId, detail.images);
         } catch (error) {
             if (detailRequestIdRef.current !== requestId) {
                 return;
@@ -660,6 +719,7 @@ export function AdminProducts() {
             if (resetExistingData) {
                 setProductVariants([]);
                 setFragranceNotes([]);
+                setProductImages([]);
             }
 
             setProductDetailError(error instanceof Error ? error.message : 'Unable to load variants and fragrance notes.');
@@ -676,6 +736,8 @@ export function AdminProducts() {
         setFormState(createEmptyFormState());
         setFormError('');
         setImageError('');
+        setPendingPrimaryImageId(null);
+        setPendingImageDeleteId(null);
         setHasManualSlug(false);
         setProductImages([]);
         setSelectedPrimaryImageUrl(null);
@@ -688,11 +750,13 @@ export function AdminProducts() {
         setFormState(createFormState(product));
         setFormError('');
         setImageError('');
+        setPendingPrimaryImageId(null);
+        setPendingImageDeleteId(null);
         setHasManualSlug(product.slug !== slugifyName(product.name));
-        setProductImages(sortImages(product.images ?? []));
+        setProductImages([]);
         setSelectedPrimaryImageUrl(getInitialPrimaryImageUrl(product));
         resetProductManagementState();
-        void loadProductManagementDetail(product, true);
+        void loadProductManagementDetail(product.id, true);
     };
 
     const closeForm = () => {
@@ -704,6 +768,8 @@ export function AdminProducts() {
         setHasManualSlug(false);
         setProductImages([]);
         setSelectedPrimaryImageUrl(null);
+        setPendingPrimaryImageId(null);
+        setPendingImageDeleteId(null);
         resetProductManagementState();
     };
 
@@ -834,27 +900,69 @@ export function AdminProducts() {
         }
     };
 
-    const handleSetPrimaryImage = (imageUrl: string) => {
-        setSelectedPrimaryImageUrl(imageUrl);
-        setProductImages((currentImages) =>
-            currentImages.map((image) => ({
+    const handleSetPrimaryImage = async (imageId: number) => {
+        if (!token) {
+            setImageError('Admin session missing.');
+            return;
+        }
+
+        if (!editingProductId) {
+            setImageError('Choose an existing product before managing images.');
+            return;
+        }
+
+        setPendingPrimaryImageId(imageId);
+        setImageError('');
+
+        try {
+            const updatedPrimaryImage = await setProductPrimaryImage(token, editingProductId, imageId);
+            const nextImages = productImages.map((image) => ({
                 ...image,
-                isPrimary: image.url === imageUrl,
-            })),
-        );
+                isPrimary: image.id === updatedPrimaryImage.id,
+            }));
+            applyProductImages(editingProductId, nextImages);
+        } catch (error) {
+            setImageError(error instanceof Error ? error.message : 'Unable to update the primary image.');
+        } finally {
+            setPendingPrimaryImageId(null);
+        }
     };
 
-    const handleDeleteImage = (imageId: number) => {
-        setImageError('');
-        setProductImages((currentImages) => {
-            const nextImages = currentImages.filter((image) => image.id !== imageId);
+    const handleDeleteImage = async (imageId: number) => {
+        if (!token) {
+            setImageError('Admin session missing.');
+            return;
+        }
 
-            if (selectedPrimaryImageUrl && !nextImages.some((image) => image.url === selectedPrimaryImageUrl)) {
-                setSelectedPrimaryImageUrl(nextImages[0]?.url ?? null);
+        if (!editingProductId) {
+            setImageError('Choose an existing product before managing images.');
+            return;
+        }
+
+        setPendingImageDeleteId(imageId);
+        setImageError('');
+
+        try {
+            const imageToDelete = productImages.find((image) => image.id === imageId) ?? null;
+
+            await deleteProductImage(token, editingProductId, imageId);
+
+            let nextImages = productImages.filter((image) => image.id !== imageId);
+
+            if (imageToDelete?.isPrimary && nextImages.length > 0) {
+                const nextPrimaryImageId = sortImages(nextImages)[0]?.id ?? null;
+                nextImages = nextImages.map((image) => ({
+                    ...image,
+                    isPrimary: image.id === nextPrimaryImageId,
+                }));
             }
 
-            return nextImages;
-        });
+            applyProductImages(editingProductId, nextImages);
+        } catch (error) {
+            setImageError(error instanceof Error ? error.message : 'Unable to delete image.');
+        } finally {
+            setPendingImageDeleteId(null);
+        }
     };
 
     const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -886,14 +994,15 @@ export function AdminProducts() {
         try {
             const uploadTicket = await requestUploadTicket(token, selectedFile);
             await uploadFileToStorage(uploadTicket.uploadUrl, selectedFile);
-            const createdImage = await attachProductImage(token, editingProductId, uploadTicket.publicUrl, productImages.length);
+            const nextDisplayOrder =
+                productImages.reduce((highestOrder, image) => Math.max(highestOrder, image.displayOrder), -1) + 1;
+            const createdImage = await attachProductImage(token, editingProductId, uploadTicket.publicUrl, nextDisplayOrder);
+            const nextImages = [
+                ...productImages,
+                normalizeImagePayload(createdImage, uploadTicket.publicUrl, nextDisplayOrder),
+            ];
 
-            setProductImages((currentImages) =>
-                sortImages([
-                    ...currentImages,
-                    normalizeImagePayload(createdImage, uploadTicket.publicUrl, currentImages.length),
-                ]),
-            );
+            applyProductImages(editingProductId, nextImages);
         } catch (error) {
             setImageError(error instanceof Error ? error.message : 'Unable to upload image.');
         } finally {
@@ -973,11 +1082,11 @@ export function AdminProducts() {
     };
 
     const refreshProductManagement = async () => {
-        if (!editingProduct) {
+        if (!editingProductId) {
             return;
         }
 
-        await loadProductManagementDetail(editingProduct);
+        await loadProductManagementDetail(editingProductId);
     };
 
     const handleCreateVariant = async () => {
@@ -1333,6 +1442,9 @@ export function AdminProducts() {
                                     <div className="mt-5 flex flex-wrap gap-4">
                                         {productImages.map((image) => {
                                             const isSelectedPrimary = selectedPrimaryImageUrl === image.url;
+                                            const isUpdatingPrimary = pendingPrimaryImageId === image.id;
+                                            const isDeletingImage = pendingImageDeleteId === image.id;
+                                            const isImageActionPending = isUpdatingPrimary || isDeletingImage;
 
                                             return (
                                                 <div
@@ -1356,18 +1468,24 @@ export function AdminProducts() {
                                                                     ? 'bg-[var(--color-primary)] text-white'
                                                                     : 'border border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--color-ink)]'
                                                             }`}
-                                                            onClick={() => handleSetPrimaryImage(image.url)}
+                                                            disabled={isImageActionPending}
+                                                            onClick={() => handleSetPrimaryImage(image.id)}
                                                             type="button"
                                                         >
-                                                            {isSelectedPrimary ? 'Primary Selected' : 'Set Primary'}
+                                                            {isUpdatingPrimary
+                                                                ? 'Saving'
+                                                                : isSelectedPrimary
+                                                                  ? 'Primary Selected'
+                                                                  : 'Set Primary'}
                                                         </button>
                                                         <button
                                                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--glass-border)] px-3 py-2 text-xs uppercase tracking-[0.16em] text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]"
+                                                            disabled={isImageActionPending}
                                                             onClick={() => handleDeleteImage(image.id)}
                                                             type="button"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                                                            <span>Delete</span>
+                                                            <span>{isDeletingImage ? 'Deleting' : 'Delete'}</span>
                                                         </button>
                                                     </div>
                                                 </div>

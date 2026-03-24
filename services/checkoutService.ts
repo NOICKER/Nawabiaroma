@@ -18,7 +18,7 @@ interface PricingRow {
     product_id: number | string;
     sku: string;
     size_label: string;
-    stock_quantity: number;
+    stock_quantity: number | string;
     price_override: string | null;
     name: string;
     slug: string;
@@ -237,7 +237,7 @@ export async function validateCheckoutCart(items: CheckoutItemInput[], executor:
             throw new HttpError(400, `Variant ${item.variantId} is not available.`);
         }
 
-        if (row.stock_quantity < item.quantity) {
+        if (Number(row.stock_quantity) < Number(item.quantity)) {
             throw new HttpError(409, `Variant ${item.variantId} does not have enough inventory.`);
         }
 
@@ -250,29 +250,38 @@ export async function validateCheckoutCart(items: CheckoutItemInput[], executor:
             productSlug: row.slug,
             sku: row.sku,
             sizeLabel: row.size_label,
-            quantity: item.quantity,
+            quantity: Number(item.quantity),
             unitPrice,
-            lineTotal: unitPrice * item.quantity,
+            lineTotal: unitPrice * Number(item.quantity),
         };
     });
 
-    const subtotal = pricedItems.reduce((sum, item) => sum + item.lineTotal, 0);
-    const shippingAmount = calculateShipping(subtotal);
+    const subtotal = pricedItems.reduce((sum, item) => sum + Number(item.lineTotal), 0);
+    const shippingAmount = Number(calculateShipping(subtotal));
 
     return {
         items: pricedItems,
         subtotal,
         shippingAmount,
-        totalAmount: subtotal + shippingAmount,
+        totalAmount: Number(subtotal) + shippingAmount,
     };
 }
 
 export async function createCheckoutSession(payload: CheckoutRequest): Promise<CheckoutSessionResponse> {
     const pricedCart = await validateCheckoutCart(payload.items);
     const orderReference = randomUUID();
+    const subtotal = Number(pricedCart.subtotal);
+    const shippingAmount = Number(pricedCart.shippingAmount);
+    const totalAmount = Number(pricedCart.totalAmount);
+    const normalizedItems = pricedCart.items.map((item) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        lineTotal: Number(item.lineTotal),
+    }));
 
     const paymentIntent = await createPaymentIntent({
-        amount: pricedCart.totalAmount,
+        amount: totalAmount,
         customerEmail: payload.customerEmail,
         metadata: {
             order_reference: orderReference,
@@ -285,8 +294,8 @@ export async function createCheckoutSession(payload: CheckoutRequest): Promise<C
             shipping_postal_code: payload.shippingAddress.postalCode,
             shipping_country: payload.shippingAddress.country,
             shipping_phone: payload.shippingAddress.phone ?? '',
-            cart_items: serializeCartItems(pricedCart.items),
-            ...encodeCartSnapshotMetadata(pricedCart.items),
+            cart_items: serializeCartItems(normalizedItems),
+            ...encodeCartSnapshotMetadata(normalizedItems),
         },
     });
 
@@ -299,9 +308,9 @@ export async function createCheckoutSession(payload: CheckoutRequest): Promise<C
         paymentIntentId: paymentIntent.id,
         orderReference,
         currency: env.STRIPE_CURRENCY,
-        subtotal: pricedCart.subtotal,
-        shippingAmount: pricedCart.shippingAmount,
-        totalAmount: pricedCart.totalAmount,
-        items: pricedCart.items,
+        subtotal,
+        shippingAmount,
+        totalAmount,
+        items: normalizedItems,
     };
 }

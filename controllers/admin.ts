@@ -4,20 +4,24 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
 import {
+    createAdminProductImageRecord,
     createAdminArticleRecord,
     createAdminFragranceNoteRecord,
     createAdminPageRecord,
     createAdminProductRecord,
     createAdminProductVariantRecord,
+    deleteAdminProductImageRecord,
     deleteAdminArticleRecord,
     deleteAdminFragranceNoteRecord,
     deleteAdminPageRecord,
     deleteAdminProductRecord,
     deleteAdminProductVariantRecord,
+    getAdminProductDetailRecord,
     listAdminArticles,
     listAdminOrders,
     listAdminPages,
     listAdminProducts,
+    setAdminProductPrimaryImageRecord,
     updateAdminArticleRecord,
     updateAdminOrderRecord,
     updateAdminPageRecord,
@@ -47,6 +51,12 @@ const productVariantPayloadSchema = z.object({
     sizeLabel: z.string().min(1),
     priceOverride: z.coerce.number().positive().nullable().optional(),
     stockQuantity: z.coerce.number().int().min(0),
+});
+
+const productImagePayloadSchema = z.object({
+    url: z.string().url(),
+    isPrimary: z.boolean().default(false),
+    displayOrder: z.coerce.number().int().min(0).default(0),
 });
 
 const orderUpdateSchema = z
@@ -118,6 +128,11 @@ export const getAdminProducts = asyncHandler(async (_req: Request, res: Response
     res.status(200).json({ data: products });
 });
 
+export const getAdminProduct = asyncHandler(async (req: Request, res: Response) => {
+    const product = await getAdminProductDetailRecord(parseId(req.params.id));
+    res.status(200).json({ data: product });
+});
+
 export const createAdminProduct = asyncHandler(async (req: Request, res: Response) => {
     const parsed = productPayloadSchema.safeParse(req.body);
 
@@ -143,6 +158,27 @@ export const updateAdminProduct = asyncHandler(async (req: Request, res: Respons
 export const deleteAdminProduct = asyncHandler(async (req: Request, res: Response) => {
     const deletedProduct = await deleteAdminProductRecord(parseId(req.params.id));
     res.status(200).json({ data: deletedProduct });
+});
+
+export const createAdminProductImage = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = productImagePayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid product image payload.', parsed.error.flatten());
+    }
+
+    const image = await createAdminProductImageRecord(parseId(req.params.id), parsed.data);
+    res.status(201).json({ data: image });
+});
+
+export const deleteAdminProductImage = asyncHandler(async (req: Request, res: Response) => {
+    const image = await deleteAdminProductImageRecord(parseId(req.params.id), parseId(req.params.imageId));
+    res.status(200).json({ data: image });
+});
+
+export const setAdminProductPrimaryImage = asyncHandler(async (req: Request, res: Response) => {
+    const image = await setAdminProductPrimaryImageRecord(parseId(req.params.id), parseId(req.params.imageId));
+    res.status(200).json({ data: image });
 });
 
 export const createAdminProductVariant = asyncHandler(async (req: Request, res: Response) => {

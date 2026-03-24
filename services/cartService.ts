@@ -48,10 +48,10 @@ interface CartAggregateItemRow {
     productSlug: string;
     sku: string;
     sizeLabel: string;
-    quantity: number;
+    quantity: number | string;
     unitPrice: number | string;
     lineTotal: number | string;
-    stockQuantity: number;
+    stockQuantity: number | string;
     primaryImageUrl: string | null;
 }
 
@@ -64,7 +64,7 @@ interface VariantRow {
     product_id: number | string;
     sku: string;
     size_label: string;
-    stock_quantity: number;
+    stock_quantity: number | string;
     price_override: string | null;
     name: string;
     slug: string;
@@ -73,7 +73,7 @@ interface VariantRow {
 }
 
 interface CartItemQuantityRow {
-    quantity: number;
+    quantity: number | string;
 }
 
 type ResolvedCart = CartRow & { id: number; customer_id: number | null };
@@ -103,10 +103,10 @@ function mapCartItem(row: CartAggregateItemRow): PersistentCartItem {
         productSlug: row.productSlug,
         sku: row.sku,
         sizeLabel: row.sizeLabel,
-        quantity: row.quantity,
+        quantity: Number(row.quantity),
         unitPrice: Number(row.unitPrice),
         lineTotal: Number(row.lineTotal),
-        stockQuantity: row.stockQuantity,
+        stockQuantity: Number(row.stockQuantity),
         primaryImageUrl: row.primaryImageUrl,
     };
 }
@@ -127,8 +127,8 @@ function buildEmptyCart(input: CartIdentityInput): PersistentCart {
 
 function mapCart(row: CartAggregateRow): PersistentCart {
     const items = (row.items ?? []).map(mapCartItem);
-    const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
-    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal), 0);
+    const itemCount = items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
     return {
         id: Number(row.id),
@@ -533,14 +533,14 @@ export async function addCartItem(input: AddCartItemInput): Promise<PersistentCa
             `,
             [cart.id, input.variantId],
         );
-        const existingQuantity = quantityResult.rowCount === 0 ? 0 : quantityResult.rows[0].quantity;
+        const existingQuantity = quantityResult.rowCount === 0 ? 0 : Number(quantityResult.rows[0].quantity);
         const nextQuantity = existingQuantity + input.quantity;
 
         if (nextQuantity > MAX_CART_ITEM_QUANTITY) {
             throw new HttpError(400, `Quantity cannot exceed ${MAX_CART_ITEM_QUANTITY}.`);
         }
 
-        if (variant.stock_quantity < nextQuantity) {
+        if (Number(variant.stock_quantity) < nextQuantity) {
             throw new HttpError(409, `Variant ${input.variantId} does not have enough inventory.`);
         }
 
@@ -643,7 +643,7 @@ export async function updateCartItem(input: UpdateCartItemInput): Promise<Persis
         } else {
             const variant = await getVariant(input.variantId, client);
 
-            if (variant.stock_quantity < input.quantity) {
+            if (Number(variant.stock_quantity) < input.quantity) {
                 throw new HttpError(409, `Variant ${input.variantId} does not have enough inventory.`);
             }
 

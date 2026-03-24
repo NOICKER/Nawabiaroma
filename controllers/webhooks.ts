@@ -41,7 +41,7 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
                 ...requestContext,
                 order_reference: fulfillment.orderReference,
                 payment_intent_id: paymentIntent.id,
-                amount: fulfillment.totalAmount,
+                amount: Number(fulfillment.totalAmount),
                 already_processed: fulfillment.alreadyProcessed,
             });
         } catch (error) {

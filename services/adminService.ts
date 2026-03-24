@@ -1,6 +1,7 @@
 import { HttpError } from '../middleware/errorHandler.js';
 import type { FragranceNoteType, OrderStatus } from '../models/types.js';
-import { query } from '../server/config/database.js';
+import { deleteProductImageFromStorage } from '../services/storageService.js';
+import { query, type Queryable, withTransaction } from '../server/config/database.js';
 
 interface ProductPayload {
     slug: string;
@@ -41,14 +42,103 @@ interface ProductVariantPayload {
     stockQuantity: number;
 }
 
+interface ProductImagePayload {
+    url: string;
+    isPrimary: boolean;
+    displayOrder: number;
+}
+
 interface FragranceNotePayload {
     type: FragranceNoteType;
     note: string;
     displayOrder: number;
 }
 
+interface AdminProductListRow {
+    id: number | string;
+    slug: string;
+    name: string;
+    subName: string | null;
+    tagline: string | null;
+    description: string | null;
+    size: string | null;
+    basePrice: number | string;
+    isActive: boolean;
+    createdAt: Date | string;
+    primaryImageUrl: string | null;
+}
+
+interface AdminProductVariantRow {
+    id: number | string;
+    sku: string;
+    sizeLabel: string;
+    price: number | string;
+    stockQuantity: number | string;
+}
+
+interface AdminProductImageRow {
+    id: number | string;
+    url: string;
+    isPrimary: boolean;
+    displayOrder: number | string;
+}
+
+interface AdminFragranceNoteRow {
+    id: number | string;
+    type: FragranceNoteType;
+    note: string;
+    displayOrder: number | string;
+}
+
+interface AdminProductDetailRow extends AdminProductListRow {
+    variants: AdminProductVariantRow[] | null;
+    notes: AdminFragranceNoteRow[] | null;
+    images: AdminProductImageRow[] | null;
+}
+
+interface AdminOrderRow {
+    id: number | string;
+    totalAmount: number | string;
+    status: OrderStatus;
+    trackingNumber: string | null;
+    stripePaymentIntentId: string | null;
+    createdAt: Date | string;
+    customerEmail: string | null;
+    itemCount: number | string;
+}
+
+interface UpdatedAdminOrderRow {
+    id: number | string;
+    totalAmount: number | string;
+    status: OrderStatus;
+    trackingNumber: string | null;
+    stripePaymentIntentId: string | null;
+    createdAt: Date | string;
+}
+
+function mapAdminOrderRow(row: AdminOrderRow) {
+    return {
+        ...row,
+        id: Number(row.id),
+        totalAmount: Number(row.totalAmount),
+        itemCount: Number(row.itemCount),
+    };
+}
+
+function mapUpdatedAdminOrderRow(row: UpdatedAdminOrderRow) {
+    return {
+        ...row,
+        id: Number(row.id),
+        totalAmount: Number(row.totalAmount),
+    };
+}
+
 async function assertProductExists(productId: number) {
-    const result = await query(
+    return assertProductExistsWithExecutor(productId, { query });
+}
+
+async function assertProductExistsWithExecutor(productId: number, executor: Queryable) {
+    const result = await executor.query(
         `
             SELECT 1
             FROM products
@@ -62,26 +152,160 @@ async function assertProductExists(productId: number) {
     }
 }
 
+function toIsoString(value: Date | string) {
+    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function mapAdminProductImage(row: AdminProductImageRow) {
+    return {
+        id: Number(row.id),
+        url: row.url,
+        isPrimary: row.isPrimary,
+        displayOrder: Number(row.displayOrder),
+    };
+}
+
+function mapAdminProductListRow(row: AdminProductListRow) {
+    return {
+        id: Number(row.id),
+        slug: row.slug,
+        name: row.name,
+        subName: row.subName,
+        tagline: row.tagline,
+        description: row.description,
+        size: row.size,
+        basePrice: Number(row.basePrice),
+        isActive: row.isActive,
+        primaryImageUrl: row.primaryImageUrl,
+        createdAt: toIsoString(row.createdAt),
+    };
+}
+
 export async function listAdminProducts() {
-    const result = await query(
+    const result = await query<AdminProductListRow>(
         `
             SELECT
-                id,
-                slug,
-                name,
-                sub_name AS "subName",
-                tagline,
-                description,
-                size,
-                base_price AS "basePrice",
-                is_active AS "isActive",
-                created_at AS "createdAt"
-            FROM products
-            ORDER BY created_at DESC, id DESC
+                p.id,
+                p.slug,
+                p.name,
+                p.sub_name AS "subName",
+                p.tagline,
+                p.description,
+                p.size,
+                p.base_price AS "basePrice",
+                p.is_active AS "isActive",
+                p.created_at AS "createdAt",
+                image.url AS "primaryImageUrl"
+            FROM products p
+            LEFT JOIN LATERAL (
+                SELECT url
+                FROM product_images
+                WHERE product_id = p.id
+                ORDER BY is_primary DESC, display_order ASC, id ASC
+                LIMIT 1
+            ) image ON TRUE
+            ORDER BY p.created_at DESC, p.id DESC
         `,
     );
 
-    return result.rows;
+    return result.rows.map(mapAdminProductListRow);
+}
+
+export async function getAdminProductDetailRecord(id: number) {
+    const result = await query<AdminProductDetailRow>(
+        `
+            SELECT
+                p.id,
+                p.slug,
+                p.name,
+                p.sub_name AS "subName",
+                p.tagline,
+                p.description,
+                p.size,
+                p.base_price AS "basePrice",
+                p.is_active AS "isActive",
+                p.created_at AS "createdAt",
+                image.url AS "primaryImageUrl",
+                COALESCE(variants.variants, '[]'::json) AS variants,
+                COALESCE(notes.notes, '[]'::json) AS notes,
+                COALESCE(images.images, '[]'::json) AS images
+            FROM products p
+            LEFT JOIN LATERAL (
+                SELECT url
+                FROM product_images
+                WHERE product_id = p.id
+                ORDER BY is_primary DESC, display_order ASC, id ASC
+                LIMIT 1
+            ) image ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', pv.id,
+                        'sku', pv.sku,
+                        'sizeLabel', pv.size_label,
+                        'price', COALESCE(pv.price_override, p.base_price),
+                        'stockQuantity', pv.stock_quantity
+                    )
+                    ORDER BY pv.id ASC
+                ) AS variants
+                FROM product_variants pv
+                WHERE pv.product_id = p.id
+            ) variants ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', fn.id,
+                        'type', fn.type,
+                        'note', fn.note,
+                        'displayOrder', fn.display_order
+                    )
+                    ORDER BY fn.display_order ASC, fn.id ASC
+                ) AS notes
+                FROM fragrance_notes fn
+                WHERE fn.product_id = p.id
+            ) notes ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', pi.id,
+                        'url', pi.url,
+                        'isPrimary', pi.is_primary,
+                        'displayOrder', pi.display_order
+                    )
+                    ORDER BY pi.is_primary DESC, pi.display_order ASC, pi.id ASC
+                ) AS images
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+            ) images ON TRUE
+            WHERE p.id = $1
+            LIMIT 1
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Product not found.');
+    }
+
+    const row = result.rows[0];
+
+    return {
+        ...mapAdminProductListRow(row),
+        variants: (row.variants ?? []).map((variant) => ({
+            id: Number(variant.id),
+            sku: variant.sku,
+            sizeLabel: variant.sizeLabel,
+            price: Number(variant.price),
+            stockQuantity: Number(variant.stockQuantity),
+        })),
+        notes: (row.notes ?? []).map((note) => ({
+            id: Number(note.id),
+            type: note.type,
+            note: note.note,
+            displayOrder: Number(note.displayOrder),
+        })),
+        images: (row.images ?? []).map(mapAdminProductImage),
+    };
 }
 
 export async function createAdminProductRecord(payload: ProductPayload) {
@@ -169,6 +393,148 @@ export async function updateAdminProductRecord(id: number, payload: ProductPaylo
     }
 
     return result.rows[0];
+}
+
+export async function createAdminProductImageRecord(productId: number, payload: ProductImagePayload) {
+    return withTransaction(async (client) => {
+        await assertProductExistsWithExecutor(productId, client);
+
+        const primaryResult = await client.query<{ id: number | string }>(
+            `
+                SELECT id
+                FROM product_images
+                WHERE product_id = $1
+                  AND is_primary = TRUE
+                LIMIT 1
+            `,
+            [productId],
+        );
+        const shouldBePrimary = payload.isPrimary || primaryResult.rowCount === 0;
+
+        if (shouldBePrimary) {
+            await client.query(
+                `
+                    UPDATE product_images
+                    SET is_primary = FALSE
+                    WHERE product_id = $1
+                `,
+                [productId],
+            );
+        }
+
+        const result = await client.query<AdminProductImageRow>(
+            `
+                INSERT INTO product_images (
+                    product_id,
+                    url,
+                    is_primary,
+                    display_order
+                )
+                VALUES ($1, $2, $3, $4)
+                RETURNING
+                    id,
+                    url,
+                    is_primary AS "isPrimary",
+                    display_order AS "displayOrder"
+            `,
+            [productId, payload.url, shouldBePrimary, payload.displayOrder],
+        );
+
+        return mapAdminProductImage(result.rows[0]);
+    });
+}
+
+export async function deleteAdminProductImageRecord(productId: number, imageId: number) {
+    return withTransaction(async (client) => {
+        await assertProductExistsWithExecutor(productId, client);
+
+        const deleteResult = await client.query<AdminProductImageRow>(
+            `
+                DELETE FROM product_images
+                WHERE product_id = $1
+                  AND id = $2
+                RETURNING
+                    id,
+                    url,
+                    is_primary AS "isPrimary",
+                    display_order AS "displayOrder"
+            `,
+            [productId, imageId],
+        );
+
+        if (deleteResult.rowCount === 0) {
+            throw new HttpError(404, 'Product image not found.');
+        }
+
+        const deletedImage = deleteResult.rows[0];
+
+        if (deletedImage.isPrimary) {
+            const nextPrimaryResult = await client.query<{ id: number | string }>(
+                `
+                    SELECT id
+                    FROM product_images
+                    WHERE product_id = $1
+                    ORDER BY display_order ASC, id ASC
+                    LIMIT 1
+                `,
+                [productId],
+            );
+
+            if ((nextPrimaryResult.rowCount ?? 0) > 0) {
+                await client.query(
+                    `
+                        UPDATE product_images
+                        SET is_primary = CASE WHEN id = $2 THEN TRUE ELSE FALSE END
+                        WHERE product_id = $1
+                    `,
+                    [productId, Number(nextPrimaryResult.rows[0].id)],
+                );
+            }
+        }
+
+        await deleteProductImageFromStorage(deletedImage.url);
+
+        return mapAdminProductImage(deletedImage);
+    });
+}
+
+export async function setAdminProductPrimaryImageRecord(productId: number, imageId: number) {
+    return withTransaction(async (client) => {
+        await assertProductExistsWithExecutor(productId, client);
+
+        const imageResult = await client.query<AdminProductImageRow>(
+            `
+                SELECT
+                    id,
+                    url,
+                    is_primary AS "isPrimary",
+                    display_order AS "displayOrder"
+                FROM product_images
+                WHERE product_id = $1
+                  AND id = $2
+                LIMIT 1
+            `,
+            [productId, imageId],
+        );
+
+        if (imageResult.rowCount === 0) {
+            throw new HttpError(404, 'Product image not found.');
+        }
+
+        await client.query(
+            `
+                UPDATE product_images
+                SET is_primary = CASE WHEN id = $2 THEN TRUE ELSE FALSE END
+                WHERE product_id = $1
+            `,
+            [productId, imageId],
+        );
+
+        return {
+            ...mapAdminProductImage(imageResult.rows[0]),
+            isPrimary: true,
+        };
+    });
 }
 
 export async function deleteAdminProductRecord(id: number) {
@@ -329,7 +695,7 @@ export async function deleteAdminFragranceNoteRecord(productId: number, noteId: 
 }
 
 export async function listAdminOrders() {
-    const result = await query(
+    const result = await query<AdminOrderRow>(
         `
             SELECT
                 o.id,
@@ -348,11 +714,11 @@ export async function listAdminOrders() {
         `,
     );
 
-    return result.rows;
+    return result.rows.map(mapAdminOrderRow);
 }
 
 export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePayload) {
-    const result = await query(
+    const result = await query<UpdatedAdminOrderRow>(
         `
             UPDATE orders
             SET
@@ -374,7 +740,7 @@ export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePay
         throw new HttpError(404, 'Order not found.');
     }
 
-    return result.rows[0];
+    return mapUpdatedAdminOrderRow(result.rows[0]);
 }
 
 export async function listAdminArticles() {
