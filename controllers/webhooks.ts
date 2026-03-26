@@ -37,7 +37,18 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
 
     verifyRazorpayWebhook(req.body, typeof signature === 'string' ? signature : undefined);
 
-    const event = JSON.parse(req.body.toString('utf8')) as RazorpayWebhookEvent;
+    let event: RazorpayWebhookEvent;
+
+    try {
+        event = JSON.parse(req.body.toString('utf8')) as RazorpayWebhookEvent;
+    } catch {
+        throw new HttpError(400, 'Invalid Razorpay webhook payload.');
+    }
+
+    if (typeof event.event !== 'string' || !Number.isInteger(event.created_at) || event.created_at <= 0) {
+        throw new HttpError(400, 'Invalid Razorpay webhook payload.');
+    }
+
     const providerEventId = getProviderEventId(event);
     const webhookState = await beginWebhookProcessing({
         provider: 'razorpay',

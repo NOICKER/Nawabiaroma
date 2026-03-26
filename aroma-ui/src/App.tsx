@@ -27,6 +27,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminLogin } from './pages/admin/AdminLogin';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminPages } from './pages/admin/AdminPages';
+import { AdminPromoCodes } from './pages/admin/AdminPromoCodes';
 import { AdminProducts } from './pages/admin/AdminProducts';
 
 function ScrollToTop() {
@@ -72,6 +73,7 @@ function App() {
                                         <Route path="/admin" element={<AdminDashboard />} />
                                         <Route path="/admin/products" element={<AdminProducts />} />
                                         <Route path="/admin/orders" element={<AdminOrders />} />
+                                        <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
                                         <Route path="/admin/articles" element={<AdminArticles />} />
                                         <Route path="/admin/pages" element={<AdminPages />} />
                                     </Route>

@@ -21,15 +21,33 @@ function getBearerToken(req: Request) {
         throw new HttpError(401, 'Missing bearer token.');
     }
 
-    return authHeader.slice('Bearer '.length);
+    const token = authHeader.slice('Bearer '.length).trim();
+
+    if (!token) {
+        throw new HttpError(401, 'Missing bearer token.');
+    }
+
+    return token;
 }
 
 function verifyAuthToken(token: string) {
-    const payload = jwt.verify(token, env.JWT_SECRET, {
-        algorithms: ['HS256'],
-        issuer: env.JWT_ISSUER,
-        audience: env.JWT_AUDIENCE,
-    }) as JwtPayload & Partial<AuthTokenPayload>;
+    let decodedPayload: string | JwtPayload;
+
+    try {
+        decodedPayload = jwt.verify(token, env.JWT_SECRET, {
+            algorithms: ['HS256'],
+            issuer: env.JWT_ISSUER,
+            audience: env.JWT_AUDIENCE,
+        });
+    } catch {
+        throw new HttpError(401, 'Invalid or expired token.');
+    }
+
+    if (!decodedPayload || typeof decodedPayload !== 'object' || Array.isArray(decodedPayload)) {
+        throw new HttpError(401, 'Invalid or expired token.');
+    }
+
+    const payload = decodedPayload as JwtPayload & Partial<AuthTokenPayload>;
 
     if (typeof payload.exp !== 'number') {
         throw new HttpError(401, 'Invalid or expired token.');

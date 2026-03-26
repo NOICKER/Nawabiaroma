@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { z } from 'zod';
 import { logger } from '../../services/logger.js';
 
+const PRODUCTION_MIN_JWT_SECRET_LENGTH = 32;
+
 const envSchema = z.object({
     PORT: z.coerce.number().int().positive().default(4000),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -70,6 +72,14 @@ if (
     (!parsed.data.RAZORPAY_KEY_ID || !parsed.data.RAZORPAY_KEY_SECRET || !parsed.data.RAZORPAY_WEBHOOK_SECRET)
 ) {
     throw new Error('RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET must be configured together.');
+}
+
+if (parsed.data.NODE_ENV === 'production' && parsed.data.JWT_SECRET.length < PRODUCTION_MIN_JWT_SECRET_LENGTH) {
+    throw new Error(`JWT_SECRET must be at least ${PRODUCTION_MIN_JWT_SECRET_LENGTH} characters in production.`);
+}
+
+if (parsed.data.RESEND_API_KEY && !parsed.data.ORDER_EMAIL_FROM) {
+    throw new Error('ORDER_EMAIL_FROM must be configured when RESEND_API_KEY is set.');
 }
 
 export const env = {

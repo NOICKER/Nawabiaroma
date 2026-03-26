@@ -86,7 +86,7 @@ export const listOrdersController = asyncHandler(async (req: Request, res: Respo
         throw new HttpError(400, 'Invalid order lookup parameters.', parsed.error.flatten());
     }
 
-    const orders = await listOrdersBySessionId(parsed.data.sessionId);
+    const orders = await listOrdersBySessionId(getAuthenticatedCustomerId(req), parsed.data.sessionId);
 
     res.status(200).json({
         data: orders,

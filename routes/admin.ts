@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     createAdminProductImage,
+    createAdminPromoCode,
     createAdminArticle,
     createAdminFragranceNote,
     createAdminPage,
@@ -8,12 +9,15 @@ import {
     createAdminProductVariant,
     createUploadUrl,
     deleteAdminProductImage,
+    deleteAdminPromoCode,
     deleteAdminArticle,
     deleteAdminFragranceNote,
     deleteAdminPage,
     deleteAdminProduct,
     deleteAdminProductVariant,
     getAdminProduct,
+    getAdminOrder,
+    getAdminPromoCodes,
     getAdminArticles,
     getAdminOrders,
     getAdminPages,
@@ -22,6 +26,7 @@ import {
     updateAdminArticle,
     updateAdminOrder,
     updateAdminPage,
+    updateAdminPromoCode,
     updateAdminProduct,
     updateAdminProductVariant,
 } from '../controllers/admin.js';
@@ -44,6 +49,7 @@ adminRouter.delete('/products/:id/variants/:variantId', deleteAdminProductVarian
 adminRouter.post('/products/:id/notes', createAdminFragranceNote);
 adminRouter.delete('/products/:id/notes/:noteId', deleteAdminFragranceNote);
 adminRouter.get('/orders', getAdminOrders);
+adminRouter.get('/orders/:id', getAdminOrder);
 adminRouter.put('/orders/:id', updateAdminOrder);
 adminRouter.get('/articles', getAdminArticles);
 adminRouter.post('/articles', createAdminArticle);
@@ -53,4 +59,8 @@ adminRouter.get('/pages', getAdminPages);
 adminRouter.post('/pages', createAdminPage);
 adminRouter.put('/pages/:id', updateAdminPage);
 adminRouter.delete('/pages/:id', deleteAdminPage);
+adminRouter.get('/promo-codes', getAdminPromoCodes);
+adminRouter.post('/promo-codes', createAdminPromoCode);
+adminRouter.put('/promo-codes/:id', updateAdminPromoCode);
+adminRouter.delete('/promo-codes/:id', deleteAdminPromoCode);
 adminRouter.post('/upload', createUploadUrl);

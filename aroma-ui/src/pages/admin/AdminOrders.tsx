@@ -3,7 +3,6 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
 const ADMIN_ORDERS_ENDPOINT = '/api/admin/orders';
-const ORDER_DETAIL_ENDPOINT = '/api/orders';
 const orderStatuses = [
     'awaiting_payment',
     'paid',
@@ -16,12 +15,16 @@ const orderStatuses = [
 ] as const;
 
 type OrderStatus = (typeof orderStatuses)[number];
+type PaymentMethod = 'online' | 'cod';
+type PaymentStatus = 'requires_payment_method' | 'succeeded' | 'failed' | 'refunded' | null;
 
 interface AdminOrderSummary {
     id: number;
     totalAmount: number;
     status: OrderStatus;
     trackingNumber: string | null;
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
     stripePaymentIntentId?: string | null;
     createdAt: string;
     customerEmail: string | null;
@@ -39,13 +42,17 @@ interface OrderDetailItem {
 }
 
 interface OrderDetailResponse {
-    orderId: number;
+    id: number;
     status: OrderStatus;
     items: OrderDetailItem[];
-    subtotal: number;
-    total: number;
+    subtotalAmount: number;
+    totalAmount: number;
     address: unknown;
-    created_at: string;
+    createdAt: string;
+    customerEmail: string | null;
+    trackingNumber: string | null;
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
 }
 
 interface ApiResponse<T> {
@@ -88,6 +95,38 @@ function formatDateTime(value: string) {
     });
 }
 
+function formatPaymentMethod(value: PaymentMethod) {
+    return value === 'cod' ? 'Cash on Delivery' : 'Paid Online';
+}
+
+function formatPaymentStatus(paymentMethod: PaymentMethod, paymentStatus: PaymentStatus) {
+    if (!paymentStatus) {
+        return paymentMethod === 'cod' ? 'Pending on delivery' : 'Not recorded';
+    }
+
+    return paymentStatus.replace(/_/g, ' ');
+}
+
+function getPaymentStatusBadgeClass(paymentMethod: PaymentMethod, paymentStatus: PaymentStatus) {
+    if (!paymentStatus) {
+        return paymentMethod === 'cod'
+            ? 'border-amber-400/30 bg-amber-500/15 text-amber-200'
+            : 'border-white/12 bg-white/5 text-[var(--text-muted)]';
+    }
+
+    switch (paymentStatus) {
+        case 'succeeded':
+            return 'border-emerald-400/30 bg-emerald-500/15 text-emerald-200';
+        case 'failed':
+            return 'border-red-400/30 bg-red-500/15 text-red-200';
+        case 'refunded':
+            return 'border-violet-400/30 bg-violet-500/15 text-violet-200';
+        case 'requires_payment_method':
+        default:
+            return 'border-amber-400/30 bg-amber-500/15 text-amber-200';
+    }
+}
+
 function normalizeTrackingNumber(value: string) {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
@@ -123,8 +162,13 @@ async function fetchAdminOrders(token: string) {
     return readApiPayload<AdminOrderSummary[]>(response);
 }
 
-async function fetchOrderDetail(orderId: number) {
-    const response = await fetch(`${ORDER_DETAIL_ENDPOINT}/${orderId}`);
+async function fetchOrderDetail(token: string, orderId: number) {
+    const response = await fetch(`${ADMIN_ORDERS_ENDPOINT}/${orderId}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
     return readApiPayload<OrderDetailResponse>(response);
 }
 
@@ -219,6 +263,11 @@ export function AdminOrders() {
         (statusValue !== selectedOrder.status || normalizeTrackingNumber(trackingNumberValue) !== selectedOrder.trackingNumber);
 
     const openOrderDetail = async (order: AdminOrderSummary) => {
+        if (!token) {
+            setDetailError('Admin session missing.');
+            return;
+        }
+
         setSelectedOrderId(order.id);
         setOrderDetail(null);
         setDetailError('');
@@ -229,7 +278,7 @@ export function AdminOrders() {
         setIsDetailLoading(true);
 
         try {
-            const detail = await fetchOrderDetail(order.id);
+            const detail = await fetchOrderDetail(token, order.id);
             setOrderDetail(detail);
         } catch (error) {
             setDetailError(error instanceof Error ? error.message : 'Unable to load order details.');
@@ -337,7 +386,7 @@ export function AdminOrders() {
                         </button>
                     </div>
 
-                    <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-2xl border border-[var(--glass-border)] bg-white/4 px-4 py-4">
                             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Order ID</p>
                             <p className="mt-3 text-lg text-[var(--color-ink)]">#{selectedOrder.id}</p>
@@ -349,6 +398,26 @@ export function AdminOrders() {
                         <div className="rounded-2xl border border-[var(--glass-border)] bg-white/4 px-4 py-4">
                             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Total</p>
                             <p className="mt-3 text-lg text-[var(--color-ink)]">{formatCurrency(selectedOrder.totalAmount)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--glass-border)] bg-white/4 px-4 py-4">
+                            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Payment Method</p>
+                            <p className="mt-3 text-sm text-[var(--color-ink)]">
+                                {formatPaymentMethod(orderDetail?.paymentMethod ?? selectedOrder.paymentMethod)}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--glass-border)] bg-white/4 px-4 py-4">
+                            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Payment Status</p>
+                            <span
+                                className={`mt-3 inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] ${getPaymentStatusBadgeClass(
+                                    orderDetail?.paymentMethod ?? selectedOrder.paymentMethod,
+                                    orderDetail?.paymentStatus ?? selectedOrder.paymentStatus,
+                                )}`}
+                            >
+                                {formatPaymentStatus(
+                                    orderDetail?.paymentMethod ?? selectedOrder.paymentMethod,
+                                    orderDetail?.paymentStatus ?? selectedOrder.paymentStatus,
+                                )}
+                            </span>
                         </div>
                         <div className="rounded-2xl border border-[var(--glass-border)] bg-white/4 px-4 py-4">
                             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Created At</p>
@@ -526,6 +595,12 @@ export function AdminOrders() {
                                             Total Amount
                                         </th>
                                         <th className="px-6 py-4 text-left font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">
+                                            Payment Method
+                                        </th>
+                                        <th className="px-6 py-4 text-left font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">
+                                            Payment Status
+                                        </th>
+                                        <th className="px-6 py-4 text-left font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">
                                             Status
                                         </th>
                                         <th className="px-6 py-4 text-left font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">
@@ -545,6 +620,17 @@ export function AdminOrders() {
                                             <td className="px-6 py-5 align-top text-sm text-[var(--color-ink)] md:px-8">#{order.id}</td>
                                             <td className="px-6 py-5 align-top text-sm text-[var(--color-ink)]">{order.customerEmail ?? 'Unknown customer'}</td>
                                             <td className="px-6 py-5 align-top text-sm text-[var(--color-ink)]">{formatCurrency(order.totalAmount)}</td>
+                                            <td className="px-6 py-5 align-top text-sm text-[var(--color-ink)]">{formatPaymentMethod(order.paymentMethod)}</td>
+                                            <td className="px-6 py-5 align-top">
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] ${getPaymentStatusBadgeClass(
+                                                        order.paymentMethod,
+                                                        order.paymentStatus,
+                                                    )}`}
+                                                >
+                                                    {formatPaymentStatus(order.paymentMethod, order.paymentStatus)}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-5 align-top">
                                                 <span
                                                     className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] ${getStatusBadgeClass(

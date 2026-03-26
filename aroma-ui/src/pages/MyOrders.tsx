@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
 const ORDERS_ENDPOINT = '/api/orders';
@@ -108,12 +109,20 @@ async function getErrorMessage(response: Response, fallbackMessage: string) {
 
 export default function MyOrders() {
     const navigate = useNavigate();
+    const { token } = useCustomerAuth();
     const [orders, setOrders] = useState<OrderCard[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const sessionId = getCartSessionId();
+
+        if (!token) {
+            setOrders([]);
+            setError('Sign in to view your orders.');
+            setIsLoading(false);
+            return;
+        }
 
         if (!sessionId) {
             setOrders([]);
@@ -131,6 +140,9 @@ export default function MyOrders() {
             try {
                 const response = await fetch(`${ORDERS_ENDPOINT}?sessionId=${encodeURIComponent(sessionId)}`, {
                     method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                     signal: abortController.signal,
                 });
 
@@ -163,7 +175,7 @@ export default function MyOrders() {
         return () => {
             abortController.abort();
         };
-    }, []);
+    }, [token]);
 
     if (isLoading) {
         return (

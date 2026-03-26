@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreProducts } from '../data/products';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
@@ -119,6 +120,7 @@ function MetaStat({ label, value }: { label: string; value: string }) {
 
 export default function OrderSuccess() {
     const location = useLocation();
+    const { token } = useCustomerAuth();
     const { products } = useStoreProducts();
     const [order, setOrder] = useState<OrderSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -142,11 +144,18 @@ export default function OrderSuccess() {
 
         void (async () => {
             try {
+                if (!token) {
+                    throw new Error('Sign in to view this order.');
+                }
+
                 let nextOrder: OrderSummary | null = null;
 
                 if (orderId) {
                     const response = await fetch(`${ORDERS_ENDPOINT}/${encodeURIComponent(orderId)}`, {
                         method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
                         signal: abortController.signal,
                     });
 
@@ -165,6 +174,9 @@ export default function OrderSuccess() {
 
                     const response = await fetch(`${ORDERS_ENDPOINT}?sessionId=${encodeURIComponent(sessionId)}`, {
                         method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
                         signal: abortController.signal,
                     });
 
@@ -203,7 +215,7 @@ export default function OrderSuccess() {
         return () => {
             abortController.abort();
         };
-    }, [orderId]);
+    }, [orderId, token]);
 
     const shipping = order ? Math.max(order.total - order.subtotal, 0) : 0;
 

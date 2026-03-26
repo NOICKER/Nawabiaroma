@@ -16,6 +16,16 @@ interface CreateRazorpayOrderInput {
     notes?: RazorpayNotes;
 }
 
+function normalizeRazorpayOrderAmount(amount: number) {
+    const normalizedAmount = Number(amount);
+
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        throw new HttpError(400, 'Invalid Razorpay order amount.');
+    }
+
+    return Math.round(normalizedAmount * 100);
+}
+
 function getRazorpayClient() {
     if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
         throw new HttpError(503, 'Razorpay is not configured.');
@@ -42,7 +52,7 @@ export async function createRazorpayOrder(input: CreateRazorpayOrderInput) {
     const razorpay = getRazorpayClient();
 
     return razorpay.orders.create({
-        amount: Math.round(Number(input.amount) * 100),
+        amount: normalizeRazorpayOrderAmount(input.amount),
         currency: input.currency ?? DEFAULT_CURRENCY,
         receipt: input.receipt,
         notes: input.notes,

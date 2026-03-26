@@ -14,6 +14,7 @@ const navigationItems: NavigationItem[] = [
     { label: 'Dashboard', to: '/admin', end: true },
     { label: 'Products', to: '/admin/products' },
     { label: 'Orders', to: '/admin/orders' },
+    { label: 'Promo Codes', to: '/admin/promo-codes' },
     { label: 'Articles', to: '/admin/articles' },
     { label: 'Pages', to: '/admin/pages' },
 ];

@@ -6,5 +6,5 @@ export const ordersRouter = Router();
 
 ordersRouter.post('/create', requireCustomerAuth, createOrderController);
 ordersRouter.post('/cod', requireCustomerAuth, createCodOrderController);
-ordersRouter.get('/', listOrdersController);
+ordersRouter.get('/', requireCustomerAuth, listOrdersController);
 ordersRouter.get('/:orderId', requireCustomerAuth, getOrderController);

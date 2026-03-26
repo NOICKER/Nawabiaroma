@@ -127,6 +127,11 @@ export async function createCheckoutSession(payload: CheckoutRequest, customerId
     }
 
     const cart = await getActiveCart(payload.sessionId);
+
+    if (cart.customerId !== null && cart.customerId !== customerId) {
+        throw new HttpError(403, 'Cart belongs to a different customer.');
+    }
+
     await assertAddressExists(payload.sessionId, payload.addressId);
 
     const items = await getCartItems(cart.id);

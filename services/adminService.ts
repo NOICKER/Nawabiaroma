@@ -1,5 +1,5 @@
 import { HttpError } from '../middleware/errorHandler.js';
-import type { FragranceNoteType, OrderStatus } from '../models/types.js';
+import type { FragranceNoteType, OrderStatus, PaymentMethod, PaymentStatus } from '../models/types.js';
 import { deleteProductImageFromStorage } from '../services/storageService.js';
 import { query, type Queryable, withTransaction } from '../server/config/database.js';
 
@@ -54,6 +54,18 @@ interface FragranceNotePayload {
     displayOrder: number;
 }
 
+type PromoCodeType = 'percentage' | 'fixed_amount';
+
+interface PromoCodePayload {
+    code: string;
+    type: PromoCodeType;
+    value: number;
+    minOrderAmount?: number | null;
+    maxUses?: number | null;
+    isActive: boolean;
+    expiresAt?: string | null;
+}
+
 interface AdminProductListRow {
     id: number | string;
     slug: string;
@@ -102,9 +114,35 @@ interface AdminOrderRow {
     status: OrderStatus;
     trackingNumber: string | null;
     stripePaymentIntentId: string | null;
+    paymentMethod: PaymentMethod | null;
+    paymentStatus: PaymentStatus | null;
     createdAt: Date | string;
     customerEmail: string | null;
     itemCount: number | string;
+}
+
+interface AdminOrderItemRow {
+    variantId: number | string;
+    productId: number | string;
+    productName: string;
+    variant: string;
+    quantity: number | string;
+    price: number | string;
+    subtotal: number | string;
+}
+
+interface AdminOrderDetailRow {
+    id: number | string;
+    subtotalAmount: number | string;
+    totalAmount: number | string;
+    status: OrderStatus;
+    trackingNumber: string | null;
+    paymentMethod: PaymentMethod | null;
+    paymentStatus: PaymentStatus | null;
+    createdAt: Date | string;
+    customerEmail: string | null;
+    shippingAddress: Record<string, unknown> | null;
+    items: AdminOrderItemRow[] | null;
 }
 
 interface UpdatedAdminOrderRow {
@@ -116,12 +154,29 @@ interface UpdatedAdminOrderRow {
     createdAt: Date | string;
 }
 
+interface PromoCodeRow {
+    id: number | string;
+    code: string;
+    type: PromoCodeType;
+    value: number | string;
+    minOrderAmount: number | string | null;
+    maxUses: number | string | null;
+    timesUsed: number | string;
+    isActive: boolean;
+    expiresAt: Date | string | null;
+    createdAt: Date | string;
+}
+
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
 function mapAdminOrderRow(row: AdminOrderRow) {
     return {
         ...row,
         id: Number(row.id),
         totalAmount: Number(row.totalAmount),
         itemCount: Number(row.itemCount),
+        paymentMethod: normalizePaymentMethod(row.paymentMethod, row.status),
+        paymentStatus: row.paymentStatus ?? null,
     };
 }
 
@@ -131,6 +186,79 @@ function mapUpdatedAdminOrderRow(row: UpdatedAdminOrderRow) {
         id: Number(row.id),
         totalAmount: Number(row.totalAmount),
     };
+}
+
+function normalizePaymentMethod(value: PaymentMethod | null, status: OrderStatus): PaymentMethod {
+    if (value === 'online' || value === 'cod') {
+        return value;
+    }
+
+    return status === 'processing' ? 'cod' : 'online';
+}
+
+function mapAdminOrderItem(row: AdminOrderItemRow) {
+    return {
+        variantId: Number(row.variantId),
+        productId: Number(row.productId),
+        productName: row.productName,
+        variant: row.variant,
+        quantity: Number(row.quantity),
+        price: Number(row.price),
+        subtotal: Number(row.subtotal),
+    };
+}
+
+function mapAdminOrderDetailRow(row: AdminOrderDetailRow) {
+    return {
+        id: Number(row.id),
+        subtotalAmount: Number(row.subtotalAmount),
+        totalAmount: Number(row.totalAmount),
+        status: row.status,
+        trackingNumber: row.trackingNumber,
+        paymentMethod: normalizePaymentMethod(row.paymentMethod, row.status),
+        paymentStatus: row.paymentStatus ?? null,
+        createdAt: toIsoString(row.createdAt),
+        customerEmail: row.customerEmail,
+        address: row.shippingAddress,
+        items: (row.items ?? []).map(mapAdminOrderItem),
+    };
+}
+
+function mapPromoCodeRow(row: PromoCodeRow) {
+    return {
+        id: Number(row.id),
+        code: row.code,
+        type: row.type,
+        value: Number(row.value),
+        minOrderAmount: row.minOrderAmount === null ? null : Number(row.minOrderAmount),
+        maxUses: row.maxUses === null ? null : Number(row.maxUses),
+        timesUsed: Number(row.timesUsed),
+        isActive: row.isActive,
+        expiresAt: row.expiresAt === null ? null : toIsoString(row.expiresAt),
+        createdAt: toIsoString(row.createdAt),
+    };
+}
+
+function normalizePromoCodePayload(payload: PromoCodePayload) {
+    return {
+        code: payload.code.trim().toUpperCase(),
+        type: payload.type,
+        value: payload.value,
+        minOrderAmount: payload.minOrderAmount ?? null,
+        maxUses: payload.maxUses ?? null,
+        isActive: payload.isActive,
+        expiresAt: payload.expiresAt ?? null,
+    };
+}
+
+function isPromoCodeConflict(error: unknown) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    const databaseError = error as { code?: string; constraint?: string };
+
+    return databaseError.code === POSTGRES_UNIQUE_VIOLATION && databaseError.constraint === 'promo_codes_code_key';
 }
 
 async function assertProductExists(productId: number) {
@@ -703,13 +831,22 @@ export async function listAdminOrders() {
                 o.status,
                 o.tracking_number AS "trackingNumber",
                 o.stripe_payment_intent_id AS "stripePaymentIntentId",
+                o.payment_method AS "paymentMethod",
+                payment.status AS "paymentStatus",
                 o.created_at AS "createdAt",
                 c.email AS "customerEmail",
                 COALESCE(SUM(oi.quantity), 0) AS "itemCount"
             FROM orders o
             LEFT JOIN customers c ON c.id = o.customer_id
             LEFT JOIN order_items oi ON oi.order_id = o.id
-            GROUP BY o.id, c.email
+            LEFT JOIN LATERAL (
+                SELECT p.status
+                FROM payments p
+                WHERE p.order_id = o.id
+                ORDER BY p.created_at DESC, p.id DESC
+                LIMIT 1
+            ) payment ON TRUE
+            GROUP BY o.id, c.email, payment.status
             ORDER BY o.created_at DESC, o.id DESC
         `,
     );
@@ -717,13 +854,71 @@ export async function listAdminOrders() {
     return result.rows.map(mapAdminOrderRow);
 }
 
+export async function getAdminOrderRecord(id: number) {
+    const result = await query<AdminOrderDetailRow>(
+        `
+            SELECT
+                o.id,
+                o.subtotal_amount AS "subtotalAmount",
+                o.total_amount AS "totalAmount",
+                o.status,
+                o.tracking_number AS "trackingNumber",
+                o.payment_method AS "paymentMethod",
+                payment.status AS "paymentStatus",
+                o.created_at AS "createdAt",
+                o.shipping_address_json AS "shippingAddress",
+                c.email AS "customerEmail",
+                COALESCE(items.items, '[]'::json) AS items
+            FROM orders o
+            LEFT JOIN customers c ON c.id = o.customer_id
+            LEFT JOIN LATERAL (
+                SELECT p.status
+                FROM payments p
+                WHERE p.order_id = o.id
+                ORDER BY p.created_at DESC, p.id DESC
+                LIMIT 1
+            ) payment ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT json_agg(
+                    json_build_object(
+                        'variantId', oi.product_variant_id,
+                        'productId', pv.product_id,
+                        'productName', p.name,
+                        'variant', pv.size_label,
+                        'quantity', oi.quantity,
+                        'price', oi.price_at_purchase,
+                        'subtotal', oi.price_at_purchase * oi.quantity
+                    )
+                    ORDER BY oi.id ASC
+                ) AS items
+                FROM order_items oi
+                INNER JOIN product_variants pv ON pv.id = oi.product_variant_id
+                INNER JOIN products p ON p.id = pv.product_id
+                WHERE oi.order_id = o.id
+            ) items ON TRUE
+            WHERE o.id = $1
+            LIMIT 1
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Order not found.');
+    }
+
+    return mapAdminOrderDetailRow(result.rows[0]);
+}
+
 export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePayload) {
+    const hasStatus = Object.prototype.hasOwnProperty.call(payload, 'status');
+    const hasTrackingNumber = Object.prototype.hasOwnProperty.call(payload, 'trackingNumber');
+
     const result = await query<UpdatedAdminOrderRow>(
         `
             UPDATE orders
             SET
-                status = COALESCE($2, status),
-                tracking_number = COALESCE($3, tracking_number)
+                status = CASE WHEN $2 THEN $3 ELSE status END,
+                tracking_number = CASE WHEN $4 THEN $5 ELSE tracking_number END
             WHERE id = $1
             RETURNING
                 id,
@@ -733,7 +928,7 @@ export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePay
                 stripe_payment_intent_id AS "stripePaymentIntentId",
                 created_at AS "createdAt"
         `,
-        [id, payload.status ?? null, payload.trackingNumber ?? null],
+        [id, hasStatus, payload.status ?? null, hasTrackingNumber, payload.trackingNumber ?? null],
     );
 
     if (result.rowCount === 0) {
@@ -741,6 +936,148 @@ export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePay
     }
 
     return mapUpdatedAdminOrderRow(result.rows[0]);
+}
+
+export async function listAdminPromoCodes() {
+    const result = await query<PromoCodeRow>(
+        `
+            SELECT
+                id,
+                code,
+                type,
+                value,
+                min_order_amount AS "minOrderAmount",
+                max_uses AS "maxUses",
+                times_used AS "timesUsed",
+                is_active AS "isActive",
+                expires_at AS "expiresAt",
+                created_at AS "createdAt"
+            FROM promo_codes
+            ORDER BY created_at DESC, id DESC
+        `,
+    );
+
+    return result.rows.map(mapPromoCodeRow);
+}
+
+export async function createAdminPromoCodeRecord(payload: PromoCodePayload) {
+    const normalizedPayload = normalizePromoCodePayload(payload);
+
+    try {
+        const result = await query<PromoCodeRow>(
+            `
+                INSERT INTO promo_codes (
+                    code,
+                    type,
+                    value,
+                    min_order_amount,
+                    max_uses,
+                    is_active,
+                    expires_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING
+                    id,
+                    code,
+                    type,
+                    value,
+                    min_order_amount AS "minOrderAmount",
+                    max_uses AS "maxUses",
+                    times_used AS "timesUsed",
+                    is_active AS "isActive",
+                    expires_at AS "expiresAt",
+                    created_at AS "createdAt"
+            `,
+            [
+                normalizedPayload.code,
+                normalizedPayload.type,
+                normalizedPayload.value,
+                normalizedPayload.minOrderAmount,
+                normalizedPayload.maxUses,
+                normalizedPayload.isActive,
+                normalizedPayload.expiresAt,
+            ],
+        );
+
+        return mapPromoCodeRow(result.rows[0]);
+    } catch (error) {
+        if (isPromoCodeConflict(error)) {
+            throw new HttpError(409, 'A promo code with this code already exists.');
+        }
+
+        throw error;
+    }
+}
+
+export async function updateAdminPromoCodeRecord(id: number, payload: PromoCodePayload) {
+    const normalizedPayload = normalizePromoCodePayload(payload);
+
+    try {
+        const result = await query<PromoCodeRow>(
+            `
+                UPDATE promo_codes
+                SET
+                    code = $2,
+                    type = $3,
+                    value = $4,
+                    min_order_amount = $5,
+                    max_uses = $6,
+                    is_active = $7,
+                    expires_at = $8
+                WHERE id = $1
+                RETURNING
+                    id,
+                    code,
+                    type,
+                    value,
+                    min_order_amount AS "minOrderAmount",
+                    max_uses AS "maxUses",
+                    times_used AS "timesUsed",
+                    is_active AS "isActive",
+                    expires_at AS "expiresAt",
+                    created_at AS "createdAt"
+            `,
+            [
+                id,
+                normalizedPayload.code,
+                normalizedPayload.type,
+                normalizedPayload.value,
+                normalizedPayload.minOrderAmount,
+                normalizedPayload.maxUses,
+                normalizedPayload.isActive,
+                normalizedPayload.expiresAt,
+            ],
+        );
+
+        if (result.rowCount === 0) {
+            throw new HttpError(404, 'Promo code not found.');
+        }
+
+        return mapPromoCodeRow(result.rows[0]);
+    } catch (error) {
+        if (isPromoCodeConflict(error)) {
+            throw new HttpError(409, 'A promo code with this code already exists.');
+        }
+
+        throw error;
+    }
+}
+
+export async function deleteAdminPromoCodeRecord(id: number) {
+    const result = await query(
+        `
+            DELETE FROM promo_codes
+            WHERE id = $1
+            RETURNING id
+        `,
+        [id],
+    );
+
+    if (result.rowCount === 0) {
+        throw new HttpError(404, 'Promo code not found.');
+    }
+
+    return result.rows[0];
 }
 
 export async function listAdminArticles() {

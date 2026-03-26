@@ -83,6 +83,7 @@ interface RazorpayPaymentRecord {
     id: string;
     order_id: string;
     amount: number | string;
+    currency?: string;
     status: string;
     captured: boolean;
     method: string;
@@ -94,6 +95,7 @@ interface ResolvedPaidOrderContext {
     sessionId: string;
     addressId: number;
     customerId: number;
+    cartId: number;
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature?: string;
@@ -112,6 +114,22 @@ interface CreatePaidOrderInput extends CreateCodOrderInput {
     razorpayPaymentId: string;
     razorpaySignature: string;
 }
+
+interface PaymentCreationInput {
+    providerPaymentId: string;
+    providerOrderId: string;
+    method: string;
+    signature?: string;
+    status: PaymentStatus;
+    email?: string;
+    amount: number;
+    amountInMinorUnit: number;
+    orderAmountInMinorUnit: number;
+    currency: string;
+}
+
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+const RAZORPAY_ORDER_CURRENCY = 'INR';
 
 function toIsoString(value: Date | string) {
     return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -243,7 +261,12 @@ function mapOrderSummary(
     };
 }
 
-async function getCartForUpdate(sessionId: string, executor: Queryable) {
+async function getCartForUpdate(
+    sessionId: string,
+    customerId: number,
+    expectedCartId: number | undefined,
+    executor: Queryable,
+) {
     const result = await executor.query<CartRow>(
         `
             SELECT
@@ -253,21 +276,28 @@ async function getCartForUpdate(sessionId: string, executor: Queryable) {
             FROM carts
             WHERE session_id = $1
               AND status = 'active'
+              AND ($2::bigint IS NULL OR id = $2)
             ORDER BY updated_at DESC, id DESC
             LIMIT 1
             FOR UPDATE
         `,
-        [sessionId],
+        [sessionId, expectedCartId ?? null],
     );
 
     if (result.rowCount === 0) {
         throw new HttpError(404, 'Cart not found.');
     }
 
-    return result.rows[0];
+    const cart = result.rows[0];
+
+    if (cart.customer_id !== null && Number(cart.customer_id) !== customerId) {
+        throw new HttpError(403, 'Cart belongs to a different customer.');
+    }
+
+    return cart;
 }
 
-async function getAddressForOrder(sessionId: string, addressId: number, executor: Queryable) {
+async function getAddressForOrder(sessionId: string, addressId: number, customerId: number, executor: Queryable) {
     const result = await executor.query<AddressRow>(
         `
             SELECT
@@ -297,7 +327,13 @@ async function getAddressForOrder(sessionId: string, addressId: number, executor
         throw new HttpError(404, 'Address not found.');
     }
 
-    return mapSavedAddress(result.rows[0]);
+    const address = result.rows[0];
+
+    if (address.customer_id !== null && Number(address.customer_id) !== customerId) {
+        throw new HttpError(403, 'Address belongs to a different customer.');
+    }
+
+    return mapSavedAddress(address);
 }
 
 async function getCartItemsForOrder(cartId: number, executor: Queryable) {
@@ -353,6 +389,10 @@ async function assertSufficientStock(items: CreatedOrderItem[], executor: Querya
             throw new HttpError(409, 'Insufficient stock', { variantId: item.variantId });
         }
     }
+}
+
+function sortItemsForInventory(items: CreatedOrderItem[]) {
+    return [...items].sort((left, right) => left.variantId - right.variantId);
 }
 
 async function decrementStock(items: CreatedOrderItem[], executor: Queryable) {
@@ -467,6 +507,60 @@ function getStringNote(notes: Record<string, string | number> | undefined, key: 
     return typeof rawValue === 'string' && rawValue.trim().length > 0 ? rawValue.trim() : null;
 }
 
+function getRequiredStringNote(notes: Record<string, string | number> | undefined, key: string) {
+    const value = getStringNote(notes, key);
+
+    if (!value) {
+        throw new HttpError(400, 'Missing checkout context for paid order creation.');
+    }
+
+    return value;
+}
+
+function getRequiredNumericNote(notes: Record<string, string | number> | undefined, key: string) {
+    const value = getNumericNote(notes, key);
+
+    if (!value) {
+        throw new HttpError(400, 'Missing checkout context for paid order creation.');
+    }
+
+    return value;
+}
+
+function toMinorCurrencyUnit(amount: number) {
+    return Math.round(amount * 100);
+}
+
+function assertPaidOrderAmountsMatchTotal(total: number, payment: PaymentCreationInput) {
+    const expectedAmountInMinorUnit = toMinorCurrencyUnit(total);
+
+    if (!Number.isInteger(payment.amountInMinorUnit) || !Number.isInteger(payment.orderAmountInMinorUnit)) {
+        throw new HttpError(400, 'Invalid payment amount received from Razorpay.');
+    }
+
+    if (payment.currency !== RAZORPAY_ORDER_CURRENCY) {
+        throw new HttpError(400, 'Unsupported payment currency.');
+    }
+
+    if (payment.amountInMinorUnit !== expectedAmountInMinorUnit || payment.orderAmountInMinorUnit !== expectedAmountInMinorUnit) {
+        throw new HttpError(409, 'Paid amount no longer matches the checkout total.');
+    }
+}
+
+function isIdempotentPaidOrderConflict(error: unknown) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    const databaseError = error as { code?: string; constraint?: string };
+
+    return (
+        databaseError.code === POSTGRES_UNIQUE_VIOLATION &&
+        (databaseError.constraint === 'idx_orders_razorpay_order_id' ||
+            databaseError.constraint === 'idx_payments_provider_payment_id')
+    );
+}
+
 async function resolvePaidOrderContext(
     input: Partial<CreatePaidOrderInput> & { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature?: string },
     options: { verifySignature: boolean },
@@ -495,18 +589,36 @@ async function resolvePaidOrderContext(
         throw new HttpError(409, 'Payment is not captured yet.');
     }
 
-    const sessionId = input.sessionId ?? getStringNote(razorpayOrder.notes, 'sessionId');
-    const addressId = input.addressId ?? getNumericNote(razorpayOrder.notes, 'addressId');
-    const customerId = input.customerId ?? getNumericNote(razorpayOrder.notes, 'customerId');
+    if (Number(razorpayPayment.amount) !== Number(razorpayOrder.amount)) {
+        throw new HttpError(400, 'Payment amount does not match the Razorpay order amount.');
+    }
 
-    if (!sessionId || !addressId || !customerId) {
-        throw new HttpError(400, 'Missing checkout context for paid order creation.');
+    if (typeof razorpayPayment.currency === 'string' && razorpayPayment.currency !== razorpayOrder.currency) {
+        throw new HttpError(400, 'Payment currency does not match the Razorpay order currency.');
+    }
+
+    const sessionId = getRequiredStringNote(razorpayOrder.notes, 'sessionId');
+    const addressId = getRequiredNumericNote(razorpayOrder.notes, 'addressId');
+    const customerId = getRequiredNumericNote(razorpayOrder.notes, 'customerId');
+    const cartId = getRequiredNumericNote(razorpayOrder.notes, 'cartId');
+
+    if (input.customerId && input.customerId !== customerId) {
+        throw new HttpError(403, 'Paid order does not belong to the authenticated customer.');
+    }
+
+    if (input.sessionId && input.sessionId !== sessionId) {
+        throw new HttpError(409, 'Checkout session does not match the paid Razorpay order.');
+    }
+
+    if (input.addressId && input.addressId !== addressId) {
+        throw new HttpError(409, 'Checkout address does not match the paid Razorpay order.');
     }
 
     return {
         sessionId,
         addressId,
         customerId,
+        cartId,
         razorpayOrderId: input.razorpayOrderId,
         razorpayPaymentId: input.razorpayPaymentId,
         razorpaySignature: input.razorpaySignature,
@@ -580,101 +692,118 @@ async function completeOrderCreation(input: {
     customerId: number;
     status: OrderStatus;
     paymentMethod: PaymentMethod;
+    expectedCartId?: number;
     razorpayOrderId?: string;
-    payment?: {
-        providerPaymentId: string;
-        providerOrderId: string;
-        method: string;
-        signature?: string;
-        status: PaymentStatus;
-        email?: string;
-        amount: number;
-    };
+    payment?: PaymentCreationInput;
 }) {
-    const transactionResult = await withTransaction(async (client) => {
-        const existingOrderId = await findExistingOrder(client, {
-            razorpayOrderId: input.razorpayOrderId,
-            razorpayPaymentId: input.payment?.providerPaymentId,
-        });
+    let transactionResult: { order: CreatedOrderResponse; isNew: boolean };
 
-        if (existingOrderId) {
-            const existingOrder = await getCustomerOrderById(input.customerId, existingOrderId);
-            return {
-                order: mapSummaryToCreatedOrder(existingOrder),
-                isNew: false,
-            };
-        }
+    try {
+        transactionResult = await withTransaction(async (client) => {
+            const existingOrderId = await findExistingOrder(client, {
+                razorpayOrderId: input.razorpayOrderId,
+                razorpayPaymentId: input.payment?.providerPaymentId,
+            });
 
-        const cart = await getCartForUpdate(input.sessionId, client);
-        const address = await getAddressForOrder(input.sessionId, input.addressId, client);
-        const items = await getCartItemsForOrder(Number(cart.id), client);
+            if (existingOrderId) {
+                const existingOrder = await getCustomerOrderById(input.customerId, existingOrderId);
+                return {
+                    order: mapSummaryToCreatedOrder(existingOrder),
+                    isNew: false,
+                };
+            }
 
-        await assertSufficientStock(items, client);
-        await decrementStock(items, client);
+            const cart = await getCartForUpdate(input.sessionId, input.customerId, input.expectedCartId, client);
+            const address = await getAddressForOrder(input.sessionId, input.addressId, input.customerId, client);
+            const items = await getCartItemsForOrder(Number(cart.id), client);
+            const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+            const total = subtotal;
 
-        const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-        const total = subtotal;
-        const orderId = await createOrderRecord({
-            sessionId: input.sessionId,
-            customerId: input.customerId,
-            address,
-            cartId: Number(cart.id),
-            status: input.status,
-            paymentMethod: input.paymentMethod,
-            subtotal,
-            total,
-            razorpayOrderId: input.razorpayOrderId,
-            paymentVerifiedAt: Boolean(input.payment),
-            executor: client,
-        });
+            if (input.payment) {
+                assertPaidOrderAmountsMatchTotal(total, input.payment);
+            }
 
-        await insertOrderItems(orderId, items, client);
+            const inventoryItems = sortItemsForInventory(items);
 
-        if (input.payment) {
-            await client.query(
-                `
-                    INSERT INTO payments (
-                        order_id,
-                        stripe_charge_id,
-                        amount,
-                        status,
-                        provider,
-                        provider_order_id,
-                        provider_payment_id,
-                        signature,
-                        method
-                    )
-                    VALUES ($1, NULL, $2, $3, 'razorpay', $4, $5, $6, $7)
-                `,
-                [
-                    orderId,
-                    input.payment.amount,
-                    input.payment.status,
-                    input.payment.providerOrderId,
-                    input.payment.providerPaymentId,
-                    input.payment.signature ?? null,
-                    input.payment.method,
-                ],
-            );
-        }
+            await assertSufficientStock(inventoryItems, client);
+            await decrementStock(inventoryItems, client);
 
-        await finalizeCart(Number(cart.id), client);
-
-        return {
-            order: {
-                orderId,
+            const orderId = await createOrderRecord({
+                sessionId: input.sessionId,
+                customerId: input.customerId,
+                address,
+                cartId: Number(cart.id),
                 status: input.status,
                 paymentMethod: input.paymentMethod,
-                items,
                 subtotal,
                 total,
-                address,
-                trackingNumber: null,
-                createdAt: new Date().toISOString(),
-            } satisfies CreatedOrderResponse,
-            isNew: true,
-        };
-    });
+                razorpayOrderId: input.razorpayOrderId,
+                paymentVerifiedAt: Boolean(input.payment),
+                executor: client,
+            });
+
+            await insertOrderItems(orderId, items, client);
+
+            if (input.payment) {
+                await client.query(
+                    `
+                        INSERT INTO payments (
+                            order_id,
+                            stripe_charge_id,
+                            amount,
+                            status,
+                            provider,
+                            provider_order_id,
+                            provider_payment_id,
+                            signature,
+                            method
+                        )
+                        VALUES ($1, NULL, $2, $3, 'razorpay', $4, $5, $6, $7)
+                    `,
+                    [
+                        orderId,
+                        input.payment.amount,
+                        input.payment.status,
+                        input.payment.providerOrderId,
+                        input.payment.providerPaymentId,
+                        input.payment.signature ?? null,
+                        input.payment.method,
+                    ],
+                );
+            }
+
+            await finalizeCart(Number(cart.id), client);
+
+            return {
+                order: {
+                    orderId,
+                    status: input.status,
+                    paymentMethod: input.paymentMethod,
+                    items,
+                    subtotal,
+                    total,
+                    address,
+                    trackingNumber: null,
+                    createdAt: new Date().toISOString(),
+                } satisfies CreatedOrderResponse,
+                isNew: true,
+            };
+        });
+    } catch (error) {
+        if (input.payment && isIdempotentPaidOrderConflict(error)) {
+            const existingOrderId = await findExistingOrder({ query }, {
+                razorpayOrderId: input.razorpayOrderId,
+                razorpayPaymentId: input.payment.providerPaymentId,
+            });
+
+            if (existingOrderId) {
+                const existingOrder = await getCustomerOrderById(input.customerId, existingOrderId);
+                return mapSummaryToCreatedOrder(existingOrder);
+            }
+        }
+
+        throw error;
+    }
 
     if (transactionResult.isNew) {
         await sendOrderEmail(transactionResult.order, input.payment?.email);
@@ -690,6 +819,7 @@ export async function createPaidOrder(input: CreatePaidOrderInput): Promise<Crea
         sessionId: context.sessionId,
         addressId: context.addressId,
         customerId: context.customerId,
+        expectedCartId: context.cartId,
         status: 'paid',
         paymentMethod: 'online',
         razorpayOrderId: context.razorpayOrderId,
@@ -701,6 +831,9 @@ export async function createPaidOrder(input: CreatePaidOrderInput): Promise<Crea
             status: 'succeeded',
             email: context.payment.email,
             amount: Number(context.payment.amount) / 100,
+            amountInMinorUnit: Number(context.payment.amount),
+            orderAmountInMinorUnit: Number(context.order.amount),
+            currency: context.order.currency,
         },
     });
 }
@@ -712,6 +845,7 @@ export async function createOrderFromCapturedWebhook(input: { razorpayOrderId: s
         sessionId: context.sessionId,
         addressId: context.addressId,
         customerId: context.customerId,
+        expectedCartId: context.cartId,
         status: 'paid',
         paymentMethod: 'online',
         razorpayOrderId: context.razorpayOrderId,
@@ -722,6 +856,9 @@ export async function createOrderFromCapturedWebhook(input: { razorpayOrderId: s
             status: 'succeeded',
             email: context.payment.email,
             amount: Number(context.payment.amount) / 100,
+            amountInMinorUnit: Number(context.payment.amount),
+            orderAmountInMinorUnit: Number(context.order.amount),
+            currency: context.order.currency,
         },
     });
 }
@@ -837,7 +974,7 @@ export async function listOrdersByCustomerId(customerId: number): Promise<OrderS
     return result.rows.map((row) => mapOrderSummary(row, itemsByOrderId, addressesById));
 }
 
-export async function listOrdersBySessionId(sessionId: string): Promise<OrderSummaryResponse[]> {
+export async function listOrdersBySessionId(customerId: number, sessionId: string): Promise<OrderSummaryResponse[]> {
     const result = await query<OrderRow>(
         `
             SELECT
@@ -852,9 +989,10 @@ export async function listOrdersBySessionId(sessionId: string): Promise<OrderSum
                 created_at
             FROM orders
             WHERE session_id = $1
+              AND customer_id = $2
             ORDER BY created_at DESC, id DESC
         `,
-        [sessionId],
+        [sessionId, customerId],
     );
 
     if (result.rowCount === 0) {

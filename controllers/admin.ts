@@ -5,19 +5,23 @@ import { HttpError } from '../middleware/errorHandler.js';
 import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
 import {
     createAdminProductImageRecord,
+    createAdminPromoCodeRecord,
     createAdminArticleRecord,
     createAdminFragranceNoteRecord,
     createAdminPageRecord,
     createAdminProductRecord,
     createAdminProductVariantRecord,
     deleteAdminProductImageRecord,
+    deleteAdminPromoCodeRecord,
     deleteAdminArticleRecord,
     deleteAdminFragranceNoteRecord,
     deleteAdminPageRecord,
     deleteAdminProductRecord,
     deleteAdminProductVariantRecord,
+    getAdminOrderRecord,
     getAdminProductDetailRecord,
     listAdminArticles,
+    listAdminPromoCodes,
     listAdminOrders,
     listAdminPages,
     listAdminProducts,
@@ -25,6 +29,7 @@ import {
     updateAdminArticleRecord,
     updateAdminOrderRecord,
     updateAdminPageRecord,
+    updateAdminPromoCodeRecord,
     updateAdminProductRecord,
     updateAdminProductVariantRecord,
 } from '../services/adminService.js';
@@ -89,6 +94,21 @@ const fragranceNotePayloadSchema = z.object({
     note: z.string().min(1),
     displayOrder: z.coerce.number().int().min(0),
 });
+
+const promoCodePayloadSchema = z
+    .object({
+        code: z.string().trim().min(1).transform((value) => value.toUpperCase()),
+        type: z.enum(['percentage', 'fixed_amount']),
+        value: z.number().positive(),
+        minOrderAmount: z.union([z.number().nonnegative(), z.null()]).optional(),
+        maxUses: z.union([z.number().int().positive(), z.null()]).optional(),
+        isActive: z.boolean().default(true),
+        expiresAt: z.string().datetime().nullable().optional(),
+    })
+    .refine((value) => value.type !== 'percentage' || value.value <= 100, {
+        message: 'Percentage promo codes cannot exceed 100.',
+        path: ['value'],
+    });
 
 function getSingleParam(value: string | string[] | undefined, name: string) {
     if (typeof value !== 'string' || value.length === 0) {
@@ -229,6 +249,11 @@ export const getAdminOrders = asyncHandler(async (_req: Request, res: Response) 
     res.status(200).json({ data: orders });
 });
 
+export const getAdminOrder = asyncHandler(async (req: Request, res: Response) => {
+    const order = await getAdminOrderRecord(parseId(req.params.id));
+    res.status(200).json({ data: order });
+});
+
 export const updateAdminOrder = asyncHandler(async (req: Request, res: Response) => {
     const parsed = orderUpdateSchema.safeParse(req.body);
 
@@ -302,4 +327,36 @@ export const updateAdminPage = asyncHandler(async (req: Request, res: Response) 
 export const deleteAdminPage = asyncHandler(async (req: Request, res: Response) => {
     const deletedPage = await deleteAdminPageRecord(parseId(req.params.id));
     res.status(200).json({ data: deletedPage });
+});
+
+export const getAdminPromoCodes = asyncHandler(async (_req: Request, res: Response) => {
+    const promoCodes = await listAdminPromoCodes();
+    res.status(200).json({ data: promoCodes });
+});
+
+export const createAdminPromoCode = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = promoCodePayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid promo code payload.', parsed.error.flatten());
+    }
+
+    const promoCode = await createAdminPromoCodeRecord(parsed.data);
+    res.status(201).json({ data: promoCode });
+});
+
+export const updateAdminPromoCode = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = promoCodePayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid promo code payload.', parsed.error.flatten());
+    }
+
+    const promoCode = await updateAdminPromoCodeRecord(parseId(req.params.id), parsed.data);
+    res.status(200).json({ data: promoCode });
+});
+
+export const deleteAdminPromoCode = asyncHandler(async (req: Request, res: Response) => {
+    const deletedPromoCode = await deleteAdminPromoCodeRecord(parseId(req.params.id));
+    res.status(200).json({ data: deletedPromoCode });
 });
