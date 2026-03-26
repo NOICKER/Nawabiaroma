@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { addressesRouter } from '../routes/addresses.js';
+import { accountRouter } from '../routes/account.js';
 import { cartRouter } from '../routes/cart.js';
 import { checkoutRouter } from '../routes/checkout.js';
 import { contentRouter } from '../routes/content.js';
@@ -52,6 +53,7 @@ export function createApp() {
 
     app.use('/api/', apiRateLimit);
 
+    app.use('/api/account', accountRouter);
     app.use('/api/addresses', addressesRouter);
     app.use('/api/cart', cartRouter);
     app.use('/api/orders', ordersRouter);

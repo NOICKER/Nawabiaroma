@@ -5,15 +5,27 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import type { AuthTokenPayload } from '../models/types.js';
 import { env } from '../server/config/env.js';
+import { loginCustomer, registerCustomer } from '../services/customerService.js';
 import { verifyPassword } from '../services/passwordService.js';
 
-const loginSchema = z.object({
+const adminLoginSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+});
+
+const customerRegisterSchema = z.object({
+    name: z.string().trim().min(1),
+    email: z.string().email(),
+    password: z.string().min(8),
+});
+
+const customerLoginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
 });
 
 export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
-    const parsed = loginSchema.safeParse(req.body);
+    const parsed = adminLoginSchema.safeParse(req.body);
 
     if (!parsed.success) {
         throw new HttpError(400, 'Invalid login payload.', parsed.error.flatten());
@@ -44,5 +56,33 @@ export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
         data: {
             token,
         },
+    });
+});
+
+export const registerCustomerController = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = customerRegisterSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid registration payload.', parsed.error.flatten());
+    }
+
+    const authResponse = await registerCustomer(parsed.data);
+
+    res.status(201).json({
+        data: authResponse,
+    });
+});
+
+export const loginCustomerController = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = customerLoginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid login payload.', parsed.error.flatten());
+    }
+
+    const authResponse = await loginCustomer(parsed.data);
+
+    res.status(200).json({
+        data: authResponse,
     });
 });

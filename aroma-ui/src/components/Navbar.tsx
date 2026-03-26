@@ -7,12 +7,14 @@ import { ThemeToggle } from './ThemeToggle';
 const desktopNavItems = [
     { key: 'shop', label: 'Shop', to: '/shop' },
     { key: 'about', label: 'About', to: '/about' },
+    { key: 'account', label: 'Account', to: '/account' },
 ] as const;
 
 const mobileNavItems = [
     { key: 'home', label: 'Home', to: '/' },
     { key: 'shop', label: 'Shop', to: '/shop' },
     { key: 'about', label: 'About', to: '/about' },
+    { key: 'account', label: 'Account', to: '/account' },
 ] as const;
 
 function getActiveSection(pathname: string) {
@@ -22,6 +24,10 @@ function getActiveSection(pathname: string) {
 
     if (pathname.startsWith('/about')) {
         return 'about';
+    }
+
+    if (pathname.startsWith('/account') || pathname.startsWith('/orders') || pathname.startsWith('/checkout')) {
+        return 'account';
     }
 
     if (pathname.startsWith('/shop') || pathname.startsWith('/product')) {

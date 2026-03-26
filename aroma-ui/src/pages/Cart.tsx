@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Minus, Plus, Sparkles, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart, type CartProduct } from '../context/CartContext';
 
 const discoverySetItem: CartProduct = {
@@ -16,6 +16,7 @@ function formatPrice(value: number) {
 }
 
 export function Cart() {
+    const navigate = useNavigate();
     const {
         addToCart,
         cartItems,
@@ -27,6 +28,11 @@ export function Cart() {
         removeFromCart,
         subtotal,
     } = useCart();
+
+    const handleProceedToCheckout = () => {
+        closeCart();
+        navigate('/checkout');
+    };
 
     useEffect(() => {
         if (!isCartOpen) {
@@ -228,7 +234,12 @@ export function Cart() {
                                 </p>
                             </div>
 
-                            <button className="group relative w-full overflow-hidden bg-[var(--color-ink)] py-5 transition-all hover:bg-[var(--color-primary)] active:scale-[0.98]" type="button">
+                            <button
+                                className="group relative w-full overflow-hidden bg-[var(--color-ink)] py-5 transition-all hover:bg-[var(--color-primary)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--color-ink)]"
+                                disabled={isEmpty}
+                                onClick={handleProceedToCheckout}
+                                type="button"
+                            >
                                 <div className="relative z-10 flex items-center justify-center">
                                     <span className="font-display text-[11px] font-bold tracking-[0.3em] text-[var(--color-canvas)] transition-colors group-hover:text-white">
                                         PROCEED TO CHECKOUT

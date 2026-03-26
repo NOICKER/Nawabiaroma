@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { buildApiUrl } from '../lib/api';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
 const CART_ADD_ENDPOINT = '/api/cart/add';
@@ -112,7 +113,7 @@ async function removeCartItem(input: { variantId: number; sessionId: string }) {
 }
 
 async function postCartRequest(endpoint: string, input: Record<string, number | string>, fallbackMessage: string) {
-    const response = await fetch(endpoint, {
+    const response = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -126,7 +127,7 @@ async function postCartRequest(endpoint: string, input: Record<string, number | 
 }
 
 async function getCartItems(sessionId: string, signal: AbortSignal) {
-    const response = await fetch(`${CART_GET_ENDPOINT}?sessionId=${encodeURIComponent(sessionId)}`, {
+    const response = await fetch(buildApiUrl(`${CART_GET_ENDPOINT}?sessionId=${encodeURIComponent(sessionId)}`), {
         method: 'GET',
         signal,
     });

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 export function Footer() {
     return (
         <footer className="border-t border-[var(--glass-border)] bg-[var(--color-canvas)]/70">
-            <div className="mx-auto grid max-w-[1400px] gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr_1fr] md:px-8 md:py-20">
+            <div className="mx-auto grid max-w-[1400px] gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr_1fr_1fr] md:px-8 md:py-20">
                 <div className="space-y-4">
                     <Link className="inline-flex text-2xl font-bold leading-none tracking-[0.3em]" to="/">
                         NAWABI
@@ -37,6 +37,21 @@ export function Footer() {
                     <div className="space-y-3 text-sm text-[var(--text-muted)]">
                         <p>Shipping: Complimentary delivery across India.</p>
                         <p>Returns: Complimentary returns on unopened bottles.</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Legal</p>
+                    <div className="flex flex-col gap-3">
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/contact">
+                            Contact
+                        </Link>
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/terms">
+                            Terms
+                        </Link>
+                        <Link className="text-sm transition-opacity hover:opacity-60" to="/privacy">
+                            Privacy
+                        </Link>
                     </div>
                 </div>
             </div>

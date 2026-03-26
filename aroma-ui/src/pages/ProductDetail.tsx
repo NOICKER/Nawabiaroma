@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { type StoreProduct, useStoreProduct } from '../data/products';
 
@@ -30,13 +30,13 @@ function NoteCard({ label, notes }: { label: string; notes: string[] }) {
 }
 
 export function ProductDetail() {
-    const { id } = useParams();
+    const { slug } = useParams();
 
-    if (!id) {
+    if (!slug) {
         return <ProductNotFound />;
     }
 
-    return <ProductDetailResource key={id} slug={id} />;
+    return <ProductDetailResource key={slug} slug={slug} />;
 }
 
 function ProductDetailResource({ slug }: { slug: string }) {
@@ -141,9 +141,11 @@ function ProductDetailSkeleton() {
 }
 
 function ProductDetailContent({ productData }: { productData: StoreProduct }) {
+    const navigate = useNavigate();
     const { addToCart, openCart } = useCart();
     const [quantity, setQuantity] = useState(1);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isBuyingNow, setIsBuyingNow] = useState(false);
     const [addFeedback, setAddFeedback] = useState<string | null>(null);
     const [addFeedbackTone, setAddFeedbackTone] = useState<'success' | 'error' | null>(null);
     const hasVariant = productData.variantId !== null;
@@ -183,6 +185,40 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
         setAddFeedback('Added to your selection.');
         setAddFeedbackTone('success');
         openCart();
+    };
+
+    const handleBuyNow = async () => {
+        if (!hasVariant) {
+            setAddFeedback('This product variant is unavailable right now.');
+            setAddFeedbackTone('error');
+            return;
+        }
+
+        setIsBuyingNow(true);
+        setAddFeedback(null);
+        setAddFeedbackTone(null);
+
+        const result = await addToCart(
+            {
+                id: productData.id,
+                name: productData.displayName,
+                size: productData.size,
+                price: productData.priceValue,
+                image: productData.image,
+                variantId: productData.variantId ?? undefined,
+            },
+            quantity,
+        );
+
+        setIsBuyingNow(false);
+
+        if (!result.ok) {
+            setAddFeedback(result.error ?? 'Unable to add this item right now.');
+            setAddFeedbackTone('error');
+            return;
+        }
+
+        navigate('/checkout');
     };
 
     return (
@@ -293,14 +329,24 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                                         <span className="material-symbols-outlined text-sm">add</span>
                                     </button>
                                 </div>
-                                <button
-                                    className="flex-1 bg-[var(--color-ink)] px-12 py-5 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-canvas)] transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                                    disabled={isAddingToCart || !hasVariant}
-                                    onClick={handleAddToCart}
-                                    type="button"
-                                >
-                                    {isAddingToCart ? 'Adding to Selection' : hasVariant ? 'Add to Selection' : 'Unavailable'}
-                                </button>
+                                <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                                    <button
+                                        className="flex-1 bg-[var(--color-ink)] px-12 py-5 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-canvas)] transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                                        disabled={isAddingToCart || isBuyingNow || !hasVariant}
+                                        onClick={handleAddToCart}
+                                        type="button"
+                                    >
+                                        {isAddingToCart ? 'Adding to Selection' : hasVariant ? 'Add to Selection' : 'Unavailable'}
+                                    </button>
+                                    <button
+                                        className="flex-1 border border-[var(--glass-border)] bg-[var(--color-canvas)] px-12 py-5 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-ink)] transition-all hover:bg-[var(--color-ink)]/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                                        disabled={isAddingToCart || isBuyingNow || !hasVariant}
+                                        onClick={handleBuyNow}
+                                        type="button"
+                                    >
+                                        {isBuyingNow ? 'Redirecting to Checkout' : hasVariant ? 'Buy Now' : 'Unavailable'}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="mt-4 space-y-3">

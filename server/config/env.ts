@@ -32,9 +32,9 @@ const envSchema = z.object({
     ADMIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
     ADMIN_EMAIL: z.string().email(),
     ADMIN_PASSWORD_HASH: z.string().min(1),
-    STRIPE_SECRET_KEY: z.string().min(1),
-    STRIPE_WEBHOOK_SECRET: z.string().min(1),
-    STRIPE_CURRENCY: z.string().default('inr'),
+    RAZORPAY_KEY_ID: z.string().optional(),
+    RAZORPAY_KEY_SECRET: z.string().optional(),
+    RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
     JWT_SECRET: z.string().min(1),
     JWT_ISSUER: z.string().min(1).default('nawabi-aroma'),
     JWT_AUDIENCE: z.string().min(1).default('nawabi-admin'),
@@ -58,6 +58,18 @@ if (!parsed.success) {
         field_errors: parsed.error.flatten().fieldErrors,
     });
     throw new Error('Backend environment validation failed.');
+}
+
+const hasAnyRazorpayConfig =
+    Boolean(parsed.data.RAZORPAY_KEY_ID) ||
+    Boolean(parsed.data.RAZORPAY_KEY_SECRET) ||
+    Boolean(parsed.data.RAZORPAY_WEBHOOK_SECRET);
+
+if (
+    hasAnyRazorpayConfig &&
+    (!parsed.data.RAZORPAY_KEY_ID || !parsed.data.RAZORPAY_KEY_SECRET || !parsed.data.RAZORPAY_WEBHOOK_SECRET)
+) {
+    throw new Error('RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET must be configured together.');
 }
 
 export const env = {

@@ -1,4 +1,5 @@
 export type FragranceNoteType = 'top' | 'heart' | 'base';
+export type PaymentMethod = 'online' | 'cod';
 export const orderStatuses = [
     'draft',
     'awaiting_payment',
@@ -88,9 +89,9 @@ export interface ShippingAddress {
 }
 
 export interface CheckoutRequest {
-    customerEmail: string;
-    items: CheckoutItemInput[];
-    shippingAddress: ShippingAddress;
+    sessionId: string;
+    addressId: number;
+    promoCode?: string;
 }
 
 export interface PricedCartItem {
@@ -106,10 +107,11 @@ export interface PricedCartItem {
 }
 
 export interface CheckoutSessionResponse {
-    clientSecret: string;
-    paymentIntentId: string;
-    orderReference: string;
+    provider: 'razorpay';
+    razorpayOrderId: string;
+    amount: number;
     currency: string;
+    key: string;
     subtotal: number;
     shippingAmount: number;
     totalAmount: number;
@@ -155,20 +157,38 @@ export interface CreatedOrderItem {
 
 export interface CreatedOrderResponse {
     orderId: number;
+    status: OrderStatus;
+    paymentMethod: PaymentMethod;
     items: CreatedOrderItem[];
     subtotal: number;
     total: number;
     address: SavedAddress;
+    trackingNumber: string | null;
+    createdAt: string;
 }
 
 export interface OrderSummaryResponse {
     orderId: number;
     status: OrderStatus;
+    paymentMethod: PaymentMethod;
     items: CreatedOrderItem[];
     subtotal: number;
     total: number;
     address: SavedAddress | null;
-    created_at: string;
+    trackingNumber: string | null;
+    createdAt: string;
+}
+
+export interface CustomerProfile {
+    id: number;
+    name: string | null;
+    email: string;
+    createdAt: string;
+}
+
+export interface CustomerAuthResponse {
+    token: string;
+    customer: CustomerProfile;
 }
 
 export interface SavedAddress {

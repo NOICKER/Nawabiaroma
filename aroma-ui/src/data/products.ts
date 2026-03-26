@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { buildApiUrl } from '../lib/api';
 
 const PRODUCTS_ENDPOINT = '/api/products';
 const FALLBACK_PRODUCT_IMAGE =
@@ -326,7 +327,7 @@ function mapProductDetail(product: ProductDetailApi, index?: number) {
 }
 
 async function readJson<T>(url: string, fallbackMessage: string): Promise<T> {
-    const response = await fetch(url);
+    const response = await fetch(buildApiUrl(url));
 
     if (!response.ok) {
         let message = fallbackMessage;

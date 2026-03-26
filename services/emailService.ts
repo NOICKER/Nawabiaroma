@@ -1,5 +1,4 @@
 import { Resend } from 'resend';
-import type { PricedCartItem } from '../models/types.js';
 import { env } from '../server/config/env.js';
 import { escapeHtml } from './htmlEscape.js';
 import { logger } from './logger.js';
@@ -9,7 +8,13 @@ const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 interface OrderConfirmationPayload {
     customerEmail: string;
     orderReference: string;
-    items: PricedCartItem[];
+    paymentMethod: 'online' | 'cod';
+    items: Array<{
+        productName: string;
+        sizeLabel: string;
+        quantity: number;
+        lineTotal: number;
+    }>;
     totalAmount: number;
 }
 
@@ -35,6 +40,8 @@ export async function sendOrderConfirmationEmail(payload: OrderConfirmationPaylo
         .join('');
     const safeOrderReference = escapeHtml(payload.orderReference);
     const safeTotalAmount = escapeHtml(payload.totalAmount.toLocaleString('en-IN'));
+    const paymentSummary =
+        payload.paymentMethod === 'cod' ? 'Payment method: Cash on Delivery.' : 'Payment received successfully.';
 
     await resend.emails.send({
         from: env.ORDER_EMAIL_FROM,
@@ -43,8 +50,9 @@ export async function sendOrderConfirmationEmail(payload: OrderConfirmationPaylo
         html: `
             <h1>Thank you for your order.</h1>
             <p>Your Nawabi order reference is <strong>${safeOrderReference}</strong>.</p>
+            <p>${paymentSummary}</p>
             <ul>${itemMarkup}</ul>
-            <p>Total paid: <strong>INR ${safeTotalAmount}</strong></p>
+            <p>Order total: <strong>INR ${safeTotalAmount}</strong></p>
         `,
     });
 }

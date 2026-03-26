@@ -12,7 +12,13 @@ export const createCheckout = asyncHandler(async (req: Request, res: Response) =
     }
 
     const payload = parsed.data;
-    const session = await createCheckoutSession(payload);
+    const customerId = Number(req.customer?.sub);
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+        throw new HttpError(401, 'Invalid customer session.');
+    }
+
+    const session = await createCheckoutSession(payload, customerId);
 
     res.status(201).json({
         data: session,

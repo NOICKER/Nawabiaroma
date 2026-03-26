@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { createOrderController, getOrderController, listOrdersController, updateOrderStatusController } from '../controllers/orders.js';
+import { createCodOrderController, createOrderController, getOrderController, listOrdersController } from '../controllers/orders.js';
+import { requireCustomerAuth } from '../middleware/auth.js';
 
 export const ordersRouter = Router();
 
+ordersRouter.post('/create', requireCustomerAuth, createOrderController);
+ordersRouter.post('/cod', requireCustomerAuth, createCodOrderController);
 ordersRouter.get('/', listOrdersController);
-ordersRouter.get('/:orderId', getOrderController);
-ordersRouter.post('/:orderId/status', updateOrderStatusController);
-ordersRouter.post('/create', createOrderController);
+ordersRouter.get('/:orderId', requireCustomerAuth, getOrderController);
