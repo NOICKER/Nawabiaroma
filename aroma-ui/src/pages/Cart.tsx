@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Minus, Plus, Sparkles, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart, type CartProduct } from '../context/CartContext';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 
 const discoverySetItem: CartProduct = {
     id: 'discovery-set',
@@ -28,6 +29,7 @@ export function Cart() {
         removeFromCart,
         subtotal,
     } = useCart();
+    const { isLoggedIn } = useCustomerAuth();
 
     const handleProceedToCheckout = () => {
         closeCart();
@@ -101,7 +103,20 @@ export function Cart() {
                     </button>
                 </div>
 
-                {isEmpty ? (
+                {!isLoggedIn ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center sm:px-10">
+                        <p className="font-display text-xl font-light uppercase tracking-[0.12em] text-[var(--color-ink)] sm:text-2xl">
+                            Please sign in to view your selection
+                        </p>
+                        <Link
+                            className="bg-[var(--color-ink)] px-10 py-4 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-canvas)] transition-all hover:opacity-80 active:scale-[0.98]"
+                            onClick={closeCart}
+                            to="/account"
+                        >
+                            SIGN IN
+                        </Link>
+                    </div>
+                ) : isEmpty ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center sm:px-10">
                         <p className="font-display text-xl font-light uppercase tracking-[0.12em] text-[var(--color-ink)] sm:text-2xl">
                             Your selection is empty

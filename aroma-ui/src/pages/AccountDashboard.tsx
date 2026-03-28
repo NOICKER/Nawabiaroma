@@ -20,13 +20,22 @@ export function AccountDashboard() {
                     {customer?.name ?? 'Your account'}
                 </h1>
                 <p className="mt-3 text-base font-light leading-relaxed text-[var(--text-muted)]">{customer?.email}</p>
+                <p className="mt-2 text-sm font-light leading-relaxed text-[var(--text-muted)]">
+                    {customer?.phone ? `Mobile: ${customer.phone}` : 'Add a mobile number at checkout or in your address book.'}
+                </p>
 
-                <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+                <div className="mt-10 grid gap-4 md:grid-cols-3">
                     <Link
                         className="inline-flex items-center justify-center rounded-full bg-[var(--color-ink)] px-6 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-canvas)] transition hover:opacity-85"
                         to="/orders"
                     >
                         View Orders
+                    </Link>
+                    <Link
+                        className="inline-flex items-center justify-center rounded-full border border-[var(--glass-border)] px-6 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-ink)] transition hover:bg-[var(--color-ink)]/5"
+                        to="/account/addresses"
+                    >
+                        Address Book
                     </Link>
                     <button
                         className="inline-flex items-center justify-center rounded-full border border-[var(--glass-border)] px-6 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-ink)] transition hover:bg-[var(--color-ink)]/5"

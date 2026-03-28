@@ -1,14 +1,73 @@
 -- ENUMS
-CREATE TYPE reservation_status AS ENUM ('active', 'fulfilled', 'expired', 'cancelled');
-CREATE TYPE promo_code_type AS ENUM ('percentage', 'fixed_amount');
-CREATE TYPE cart_status AS ENUM ('active', 'abandoned', 'converted');
-CREATE TYPE delivery_status AS ENUM ('scheduled', 'out_for_delivery', 'delivered', 'failed', 'returned');
-CREATE TYPE webhook_status AS ENUM ('pending', 'processing', 'completed', 'failed');
-CREATE TYPE refund_status AS ENUM ('pending', 'succeeded', 'failed', 'rejected');
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'reservation_status'
+    ) THEN
+        CREATE TYPE reservation_status AS ENUM ('active', 'fulfilled', 'expired', 'cancelled');
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'promo_code_type'
+    ) THEN
+        CREATE TYPE promo_code_type AS ENUM ('percentage', 'fixed_amount');
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'cart_status'
+    ) THEN
+        CREATE TYPE cart_status AS ENUM ('active', 'abandoned', 'converted');
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'delivery_status'
+    ) THEN
+        CREATE TYPE delivery_status AS ENUM ('scheduled', 'out_for_delivery', 'delivered', 'failed', 'returned');
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'webhook_status'
+    ) THEN
+        CREATE TYPE webhook_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'refund_status'
+    ) THEN
+        CREATE TYPE refund_status AS ENUM ('pending', 'succeeded', 'failed', 'rejected');
+    END IF;
+END $$;
 
 -- 1. ADDRESSES
 -- Extracts address logic out of the JSONB blob in orders to a normalized table.
-CREATE TABLE addresses (
+CREATE TABLE IF NOT EXISTS addresses (
     id BIGSERIAL PRIMARY KEY,
     customer_id BIGINT REFERENCES customers(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
@@ -25,7 +84,7 @@ CREATE TABLE addresses (
 
 -- 2. INVENTORY & RESERVATIONS
 -- Separates stock quantity from product_variants to support discrete tracking per warehouse/location.
-CREATE TABLE inventory (
+CREATE TABLE IF NOT EXISTS inventory (
     id BIGSERIAL PRIMARY KEY,
     product_variant_id BIGINT NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
     location_id TEXT NOT NULL DEFAULT 'default', -- Could link to a warehouses table later
@@ -36,7 +95,7 @@ CREATE TABLE inventory (
 );
 
 -- Supports holding stock during checkout to prevent overselling.
-CREATE TABLE inventory_reservations (
+CREATE TABLE IF NOT EXISTS inventory_reservations (
     id BIGSERIAL PRIMARY KEY,
     inventory_id BIGINT NOT NULL REFERENCES inventory(id) ON DELETE CASCADE,
     customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL, -- Can be null for guest checkout
@@ -48,7 +107,7 @@ CREATE TABLE inventory_reservations (
 );
 
 -- 3. PROMO CODES
-CREATE TABLE promo_codes (
+CREATE TABLE IF NOT EXISTS promo_codes (
     id BIGSERIAL PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
     type promo_code_type NOT NULL,
@@ -62,7 +121,7 @@ CREATE TABLE promo_codes (
 );
 
 -- 4. CARTS (Persistent Carts)
-CREATE TABLE carts (
+CREATE TABLE IF NOT EXISTS carts (
     id BIGSERIAL PRIMARY KEY,
     customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
     session_id TEXT NOT NULL UNIQUE,
@@ -73,7 +132,7 @@ CREATE TABLE carts (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE cart_items (
+CREATE TABLE IF NOT EXISTS cart_items (
     id BIGSERIAL PRIMARY KEY,
     cart_id BIGINT NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
     product_variant_id BIGINT NOT NULL REFERENCES product_variants(id),
@@ -84,7 +143,7 @@ CREATE TABLE cart_items (
 );
 
 -- 5. DELIVERY SCHEDULING
-CREATE TABLE delivery_slots (
+CREATE TABLE IF NOT EXISTS delivery_slots (
     id BIGSERIAL PRIMARY KEY,
     date DATE NOT NULL,
     start_time TIME NOT NULL,
@@ -95,7 +154,7 @@ CREATE TABLE delivery_slots (
     UNIQUE(date, start_time, end_time)
 );
 
-CREATE TABLE slot_reservations (
+CREATE TABLE IF NOT EXISTS slot_reservations (
     id BIGSERIAL PRIMARY KEY,
     delivery_slot_id BIGINT NOT NULL REFERENCES delivery_slots(id) ON DELETE CASCADE,
     order_id BIGINT UNIQUE REFERENCES orders(id) ON DELETE CASCADE, -- Null until checkout completes
@@ -105,7 +164,7 @@ CREATE TABLE slot_reservations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE delivery_attempts (
+CREATE TABLE IF NOT EXISTS delivery_attempts (
     id BIGSERIAL PRIMARY KEY,
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     status delivery_status NOT NULL,
@@ -115,7 +174,7 @@ CREATE TABLE delivery_attempts (
 );
 
 -- 6. ORDER STATE & REFUNDS
-CREATE TABLE order_state_transitions (
+CREATE TABLE IF NOT EXISTS order_state_transitions (
     id BIGSERIAL PRIMARY KEY,
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     from_status TEXT, -- Using TEXT to support arbitrary legacy values during transition
@@ -125,7 +184,7 @@ CREATE TABLE order_state_transitions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE refunds (
+CREATE TABLE IF NOT EXISTS refunds (
     id BIGSERIAL PRIMARY KEY,
     payment_id BIGINT NOT NULL REFERENCES payments(id) ON DELETE RESTRICT,
     amount NUMERIC(10, 2) NOT NULL CHECK (amount > 0),
@@ -137,7 +196,7 @@ CREATE TABLE refunds (
 );
 
 -- 7. WEBHOOKS / IDEMPOTENCY
-CREATE TABLE webhook_events (
+CREATE TABLE IF NOT EXISTS webhook_events (
     id BIGSERIAL PRIMARY KEY,
     provider TEXT NOT NULL, -- e.g., 'stripe'
     provider_event_id TEXT NOT NULL UNIQUE, -- Stripe's evt_... ID
@@ -150,13 +209,13 @@ CREATE TABLE webhook_events (
 );
 
 -- INDEXES (for high-frequency queries)
-CREATE INDEX idx_addresses_customer_id ON addresses(customer_id);
-CREATE INDEX idx_inventory_reservations_expires ON inventory_reservations(expires_at) WHERE status = 'active';
-CREATE INDEX idx_inventory_reservations_session ON inventory_reservations(session_id);
-CREATE INDEX idx_carts_session_id ON carts(session_id) WHERE status = 'active';
-CREATE INDEX idx_carts_customer_id ON carts(customer_id) WHERE status = 'active';
-CREATE INDEX idx_slot_reservations_expires ON slot_reservations(expires_at) WHERE status = 'active';
-CREATE INDEX idx_delivery_attempts_order_id ON delivery_attempts(order_id);
-CREATE INDEX idx_order_transitions_order_id ON order_state_transitions(order_id);
-CREATE INDEX idx_refunds_payment_id ON refunds(payment_id);
-CREATE INDEX idx_webhook_events_status ON webhook_events(status) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_addresses_customer_id ON addresses(customer_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_expires ON inventory_reservations(expires_at) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_session ON inventory_reservations(session_id);
+CREATE INDEX IF NOT EXISTS idx_carts_session_id ON carts(session_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_carts_customer_id ON carts(customer_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_slot_reservations_expires ON slot_reservations(expires_at) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_delivery_attempts_order_id ON delivery_attempts(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_transitions_order_id ON order_state_transitions(order_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_payment_id ON refunds(payment_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events(status) WHERE status = 'pending';

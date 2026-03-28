@@ -5,21 +5,11 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import type { AuthTokenPayload } from '../models/types.js';
 import { env } from '../server/config/env.js';
+import { customerLoginSchema, customerRegisterSchema } from './schemas/customerAuth.js';
 import { loginCustomer, registerCustomer } from '../services/customerService.js';
 import { verifyPassword } from '../services/passwordService.js';
 
 const adminLoginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
-});
-
-const customerRegisterSchema = z.object({
-    name: z.string().trim().min(1),
-    email: z.string().email(),
-    password: z.string().min(8),
-});
-
-const customerLoginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
 });

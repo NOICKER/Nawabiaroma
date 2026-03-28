@@ -9,14 +9,10 @@ import type {
     SavedAddress,
 } from '../models/types.js';
 import { query, type Queryable, withTransaction } from '../server/config/database.js';
+import { ensureReusableActiveCart, getExistingOrderIdByCartId } from './cartRecoveryService.js';
 import { sendOrderConfirmationEmail } from './emailService.js';
+import { logger, serializeError } from './logger.js';
 import { fetchRazorpayOrder, fetchRazorpayPayment, verifyRazorpayPayment } from './paymentService.js';
-
-interface CartRow {
-    id: number | string;
-    customer_id: number | string | null;
-    session_id: string;
-}
 
 interface CartItemRow {
     variantId: number | string;
@@ -33,6 +29,7 @@ interface AddressRow {
     id: number | string;
     customer_id: number | string | null;
     session_id: string | null;
+    label: string | null;
     full_name: string;
     line1: string;
     line2: string | null;
@@ -70,6 +67,10 @@ interface OrderItemRow {
 
 interface ExistingOrderRow {
     id: number | string;
+}
+
+interface CustomerEmailRow {
+    email: string | null;
 }
 
 interface RazorpayOrderRecord {
@@ -140,6 +141,7 @@ function mapSavedAddress(row: AddressRow): SavedAddress {
         id: Number(row.id),
         customerId: row.customer_id === null ? null : Number(row.customer_id),
         sessionId: row.session_id,
+        label: row.label,
         name: row.full_name,
         phone: row.phone,
         addressLine1: row.line1,
@@ -221,6 +223,7 @@ async function getAddressesByIds(addressIds: number[]) {
                 id,
                 customer_id,
                 session_id,
+                label,
                 full_name,
                 line1,
                 line2,
@@ -267,34 +270,14 @@ async function getCartForUpdate(
     expectedCartId: number | undefined,
     executor: Queryable,
 ) {
-    const result = await executor.query<CartRow>(
-        `
-            SELECT
-                id,
-                customer_id,
-                session_id
-            FROM carts
-            WHERE session_id = $1
-              AND status = 'active'
-              AND ($2::bigint IS NULL OR id = $2)
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 1
-            FOR UPDATE
-        `,
-        [sessionId, expectedCartId ?? null],
+    return ensureReusableActiveCart(
+        {
+            sessionId,
+            customerId,
+            expectedCartId,
+        },
+        executor,
     );
-
-    if (result.rowCount === 0) {
-        throw new HttpError(404, 'Cart not found.');
-    }
-
-    const cart = result.rows[0];
-
-    if (cart.customer_id !== null && Number(cart.customer_id) !== customerId) {
-        throw new HttpError(403, 'Cart belongs to a different customer.');
-    }
-
-    return cart;
 }
 
 async function getAddressForOrder(sessionId: string, addressId: number, customerId: number, executor: Queryable) {
@@ -304,6 +287,7 @@ async function getAddressForOrder(sessionId: string, addressId: number, customer
                 id,
                 customer_id,
                 session_id,
+                label,
                 full_name,
                 line1,
                 line2,
@@ -316,11 +300,14 @@ async function getAddressForOrder(sessionId: string, addressId: number, customer
                 created_at
             FROM addresses
             WHERE id = $1
-              AND session_id = $2
+              AND (
+                  customer_id = $2
+                  OR session_id = $3
+              )
             LIMIT 1
             FOR UPDATE
         `,
-        [addressId, sessionId],
+        [addressId, customerId, sessionId],
     );
 
     if (result.rowCount === 0) {
@@ -459,23 +446,65 @@ async function insertOrderItems(orderId: number, items: CreatedOrderItem[], exec
     }
 }
 
-async function sendOrderEmail(order: CreatedOrderResponse, email?: string) {
-    if (!email) {
-        return;
-    }
+async function getCustomerEmail(customerId: number) {
+    const result = await query<CustomerEmailRow>(
+        `
+            SELECT email
+            FROM customers
+            WHERE id = $1
+            LIMIT 1
+        `,
+        [customerId],
+    );
 
-    await sendOrderConfirmationEmail({
-        customerEmail: email,
-        orderReference: String(order.orderId),
-        paymentMethod: order.paymentMethod,
-        items: order.items.map((item) => ({
-            productName: item.productName,
-            sizeLabel: item.variant,
-            quantity: item.quantity,
-            lineTotal: item.subtotal,
-        })),
-        totalAmount: order.total,
-    });
+    return result.rows[0]?.email ?? null;
+}
+
+async function sendOrderEmail(order: CreatedOrderResponse, customerId: number, email?: string) {
+    try {
+        const recipientEmail = email ?? (await getCustomerEmail(customerId));
+
+        if (!recipientEmail) {
+            logger.warn({
+                event_type: 'order_confirmation_email_skipped',
+                outcome: 'failure',
+                order_id: order.orderId,
+                customer_id: String(customerId),
+                reason: 'missing_customer_email',
+            });
+            return;
+        }
+
+        await sendOrderConfirmationEmail({
+            customerEmail: recipientEmail,
+            orderReference: String(order.orderId),
+            paymentMethod: order.paymentMethod,
+            items: order.items.map((item) => ({
+                productName: item.productName,
+                sizeLabel: item.variant,
+                quantity: item.quantity,
+                lineTotal: item.subtotal,
+            })),
+            totalAmount: order.total,
+        });
+
+        logger.info({
+            event_type: 'order_confirmation_email_sent',
+            outcome: 'success',
+            order_id: order.orderId,
+            customer_id: String(customerId),
+            payment_method: order.paymentMethod,
+        });
+    } catch (error) {
+        logger.error({
+            event_type: 'order_confirmation_email_failed',
+            outcome: 'failure',
+            order_id: order.orderId,
+            customer_id: String(customerId),
+            payment_method: order.paymentMethod,
+            ...serializeError(error),
+        });
+    }
 }
 
 function mapSummaryToCreatedOrder(summary: OrderSummaryResponse): CreatedOrderResponse {
@@ -559,6 +588,16 @@ function isIdempotentPaidOrderConflict(error: unknown) {
         (databaseError.constraint === 'idx_orders_razorpay_order_id' ||
             databaseError.constraint === 'idx_payments_provider_payment_id')
     );
+}
+
+function isIdempotentCartOrderConflict(error: unknown) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    const databaseError = error as { code?: string; constraint?: string };
+
+    return databaseError.code === POSTGRES_UNIQUE_VIOLATION && databaseError.constraint === 'idx_orders_cart_id_unique';
 }
 
 async function resolvePaidOrderContext(
@@ -651,12 +690,11 @@ async function createOrderRecord(input: {
                 total_amount,
                 status,
                 shipping_address_json,
-                stripe_payment_intent_id,
                 payment_method,
                 razorpay_order_id,
                 payment_verified_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NULL, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
             RETURNING id
         `,
         [
@@ -697,6 +735,7 @@ async function completeOrderCreation(input: {
     payment?: PaymentCreationInput;
 }) {
     let transactionResult: { order: CreatedOrderResponse; isNew: boolean };
+    let resolvedCartId: number | null = null;
 
     try {
         transactionResult = await withTransaction(async (client) => {
@@ -714,8 +753,9 @@ async function completeOrderCreation(input: {
             }
 
             const cart = await getCartForUpdate(input.sessionId, input.customerId, input.expectedCartId, client);
+            resolvedCartId = cart.id;
             const address = await getAddressForOrder(input.sessionId, input.addressId, input.customerId, client);
-            const items = await getCartItemsForOrder(Number(cart.id), client);
+            const items = await getCartItemsForOrder(cart.id, client);
             const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
             const total = subtotal;
 
@@ -732,7 +772,7 @@ async function completeOrderCreation(input: {
                 sessionId: input.sessionId,
                 customerId: input.customerId,
                 address,
-                cartId: Number(cart.id),
+                cartId: cart.id,
                 status: input.status,
                 paymentMethod: input.paymentMethod,
                 subtotal,
@@ -749,7 +789,6 @@ async function completeOrderCreation(input: {
                     `
                         INSERT INTO payments (
                             order_id,
-                            stripe_charge_id,
                             amount,
                             status,
                             provider,
@@ -758,7 +797,7 @@ async function completeOrderCreation(input: {
                             signature,
                             method
                         )
-                        VALUES ($1, NULL, $2, $3, 'razorpay', $4, $5, $6, $7)
+                        VALUES ($1, $2, $3, 'razorpay', $4, $5, $6, $7)
                     `,
                     [
                         orderId,
@@ -772,7 +811,7 @@ async function completeOrderCreation(input: {
                 );
             }
 
-            await finalizeCart(Number(cart.id), client);
+            await finalizeCart(cart.id, client);
 
             return {
                 order: {
@@ -798,6 +837,29 @@ async function completeOrderCreation(input: {
 
             if (existingOrderId) {
                 const existingOrder = await getCustomerOrderById(input.customerId, existingOrderId);
+                logger.info({
+                    event_type: 'order_creation_idempotent',
+                    outcome: 'success',
+                    order_id: existingOrderId,
+                    customer_id: String(input.customerId),
+                    payment_method: input.paymentMethod,
+                });
+                return mapSummaryToCreatedOrder(existingOrder);
+            }
+        }
+
+        if (resolvedCartId && isIdempotentCartOrderConflict(error)) {
+            const existingOrderId = await getExistingOrderIdByCartId(resolvedCartId, { query });
+
+            if (existingOrderId) {
+                const existingOrder = await getCustomerOrderById(input.customerId, existingOrderId);
+                logger.info({
+                    event_type: 'order_creation_idempotent',
+                    outcome: 'success',
+                    order_id: existingOrderId,
+                    customer_id: String(input.customerId),
+                    payment_method: input.paymentMethod,
+                });
                 return mapSummaryToCreatedOrder(existingOrder);
             }
         }
@@ -806,40 +868,101 @@ async function completeOrderCreation(input: {
     }
 
     if (transactionResult.isNew) {
-        await sendOrderEmail(transactionResult.order, input.payment?.email);
+        logger.info({
+            event_type: 'order_created',
+            outcome: 'success',
+            order_id: transactionResult.order.orderId,
+            customer_id: String(input.customerId),
+            payment_method: input.paymentMethod,
+            status: transactionResult.order.status,
+            cart_id: input.expectedCartId ?? null,
+        });
+        logger.info({
+            event_type: 'stock_deducted',
+            outcome: 'success',
+            order_id: transactionResult.order.orderId,
+            customer_id: String(input.customerId),
+            items: transactionResult.order.items.map((item) => ({
+                variantId: item.variantId,
+                quantity: item.quantity,
+            })),
+        });
+        void sendOrderEmail(transactionResult.order, input.customerId, input.payment?.email);
+    } else {
+        logger.info({
+            event_type: 'order_creation_idempotent',
+            outcome: 'success',
+            order_id: transactionResult.order.orderId,
+            customer_id: String(input.customerId),
+            payment_method: input.paymentMethod,
+        });
     }
 
     return transactionResult.order;
 }
 
 export async function createPaidOrder(input: CreatePaidOrderInput): Promise<CreatedOrderResponse> {
-    const context = await resolvePaidOrderContext(input, { verifySignature: true });
+    try {
+        const context = await resolvePaidOrderContext(input, { verifySignature: true });
 
-    return completeOrderCreation({
-        sessionId: context.sessionId,
-        addressId: context.addressId,
-        customerId: context.customerId,
-        expectedCartId: context.cartId,
-        status: 'paid',
-        paymentMethod: 'online',
-        razorpayOrderId: context.razorpayOrderId,
-        payment: {
-            providerPaymentId: context.razorpayPaymentId,
-            providerOrderId: context.razorpayOrderId,
-            method: context.payment.method,
-            signature: context.razorpaySignature,
-            status: 'succeeded',
-            email: context.payment.email,
-            amount: Number(context.payment.amount) / 100,
-            amountInMinorUnit: Number(context.payment.amount),
-            orderAmountInMinorUnit: Number(context.order.amount),
-            currency: context.order.currency,
-        },
-    });
+        logger.info({
+            event_type: 'payment_verification',
+            outcome: 'success',
+            source: 'client_callback',
+            customer_id: String(context.customerId),
+            provider: 'razorpay',
+            provider_order_id: context.razorpayOrderId,
+            provider_payment_id: context.razorpayPaymentId,
+        });
+
+        return await completeOrderCreation({
+            sessionId: context.sessionId,
+            addressId: context.addressId,
+            customerId: context.customerId,
+            expectedCartId: context.cartId,
+            status: 'paid',
+            paymentMethod: 'online',
+            razorpayOrderId: context.razorpayOrderId,
+            payment: {
+                providerPaymentId: context.razorpayPaymentId,
+                providerOrderId: context.razorpayOrderId,
+                method: context.payment.method,
+                signature: context.razorpaySignature,
+                status: 'succeeded',
+                email: context.payment.email,
+                amount: Number(context.payment.amount) / 100,
+                amountInMinorUnit: Number(context.payment.amount),
+                orderAmountInMinorUnit: Number(context.order.amount),
+                currency: context.order.currency,
+            },
+        });
+    } catch (error) {
+        logger.warn({
+            event_type: 'payment_verification',
+            outcome: 'failure',
+            source: 'client_callback',
+            customer_id: String(input.customerId),
+            provider: 'razorpay',
+            provider_order_id: input.razorpayOrderId,
+            provider_payment_id: input.razorpayPaymentId,
+            ...serializeError(error),
+        });
+        throw error;
+    }
 }
 
 export async function createOrderFromCapturedWebhook(input: { razorpayOrderId: string; razorpayPaymentId: string }) {
     const context = await resolvePaidOrderContext(input, { verifySignature: false });
+
+    logger.info({
+        event_type: 'payment_verification',
+        outcome: 'success',
+        source: 'webhook',
+        customer_id: String(context.customerId),
+        provider: 'razorpay',
+        provider_order_id: context.razorpayOrderId,
+        provider_payment_id: context.razorpayPaymentId,
+    });
 
     return completeOrderCreation({
         sessionId: context.sessionId,

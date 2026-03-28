@@ -1,7 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AddressCard } from '../components/account/AddressCard';
+import { AddressFormFields } from '../components/account/AddressFormFields';
+import { emptyAddressFormState, type AddressFormState } from '../components/account/addressFormState';
 import { useCart } from '../context/CartContext';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
+import type { SavedAddress } from '../context/types';
 import { buildApiUrl } from '../lib/api';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
@@ -9,10 +13,12 @@ const CART_SESSION_STORAGE_KEY = 'cart_session_id';
 type CheckoutStep = 'address' | 'payment';
 type PaymentMethod = 'online' | 'cod';
 
+interface AddressListResponse {
+    data: SavedAddress[];
+}
+
 interface AddressResponse {
-    data: {
-        id: number;
-    };
+    data: SavedAddress;
 }
 
 interface CheckoutResponse {
@@ -65,30 +71,6 @@ declare global {
         Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
     }
 }
-
-interface CheckoutFormState {
-    fullName: string;
-    email: string;
-    addressLine1: string;
-    addressLine2: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-    phone: string;
-}
-
-const initialFormState: CheckoutFormState = {
-    fullName: '',
-    email: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'India',
-    phone: '',
-};
 
 function formatPrice(value: number) {
     return `\u20B9${value.toLocaleString('en-IN')}`;
@@ -143,54 +125,133 @@ function loadRazorpayScript() {
     });
 }
 
+function buildFreshAddressForm(name: string, phone: string, useAsDefault: boolean): AddressFormState {
+    return {
+        ...emptyAddressFormState,
+        label: useAsDefault ? 'Home' : '',
+        name,
+        phone,
+        setAsDefault: useAsDefault,
+    };
+}
+
+function AddressSummary({ address }: { address: SavedAddress }) {
+    return (
+        <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-5">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[var(--glass-border)] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    {address.label || 'Selected address'}
+                </span>
+                {address.isDefault ? (
+                    <span className="rounded-full bg-[var(--color-ink)] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-canvas)]">
+                        Default
+                    </span>
+                ) : null}
+            </div>
+            <p className="mt-4 font-display text-2xl font-light text-[var(--color-ink)]">{address.name}</p>
+            <div className="mt-3 space-y-1 text-sm text-[var(--text-muted)]">
+                <p>{address.phone || 'Phone not saved'}</p>
+                <p>{address.addressLine1}</p>
+                {address.addressLine2 ? <p>{address.addressLine2}</p> : null}
+                <p>
+                    {address.city}, {address.state} {address.postalCode}
+                </p>
+                <p>{address.country}</p>
+            </div>
+        </div>
+    );
+}
+
 export default function Checkout() {
     const navigate = useNavigate();
-    const { cartItems, subtotal } = useCart();
+    const { cartItems, subtotal, clearCart } = useCart();
     const { customer, token } = useCustomerAuth();
     const [step, setStep] = useState<CheckoutStep>('address');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online');
-    const [formState, setFormState] = useState<CheckoutFormState>(() => ({
-        ...initialFormState,
-        fullName: customer?.name ?? '',
-        email: customer?.email ?? '',
-    }));
-    const [addressId, setAddressId] = useState<number | null>(null);
+    const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+    const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+    const [addressForm, setAddressForm] = useState<AddressFormState>(() =>
+        buildFreshAddressForm(customer?.name ?? '', customer?.phone ?? '', true),
+    );
+    const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
+    const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
     const [isSubmittingAddress, setIsSubmittingAddress] = useState(false);
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const total = subtotal;
     const sessionId = useMemo(() => getCartSessionId(), []);
+    const selectedAddress = addresses.find((address) => address.id === selectedAddressId) ?? null;
+
+    const loadAddresses = async () => {
+        if (!token) {
+            setAddresses([]);
+            setSelectedAddressId(null);
+            setIsLoadingAddresses(false);
+            return;
+        }
+
+        setIsLoadingAddresses(true);
+
+        try {
+            const response = await fetch(buildApiUrl('/api/account/addresses'), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(await getErrorMessage(response, 'Unable to load saved addresses.'));
+            }
+
+            const payload = (await response.json()) as AddressListResponse;
+            const nextAddresses = payload.data ?? [];
+            const nextDefaultId = nextAddresses.find((address) => address.isDefault)?.id ?? nextAddresses[0]?.id ?? null;
+
+            setAddresses(nextAddresses);
+            setSelectedAddressId((current) => (current && nextAddresses.some((address) => address.id === current) ? current : nextDefaultId));
+            setIsAddressFormOpen(nextAddresses.length === 0);
+
+            if (nextAddresses.length === 0) {
+                setAddressForm(buildFreshAddressForm(customer?.name ?? '', customer?.phone ?? '', true));
+            }
+        } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : 'Unable to load saved addresses.');
+        } finally {
+            setIsLoadingAddresses(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadAddresses();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
+
+    const openNewAddressForm = () => {
+        setError(null);
+        setIsAddressFormOpen(true);
+        setAddressForm(buildFreshAddressForm(customer?.name ?? '', customer?.phone ?? '', addresses.length === 0));
+    };
 
     const handleAddressSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setError(null);
 
-        if (!sessionId) {
-            setError('Cart session not found. Refresh and try again.');
+        if (!token) {
+            setError('Sign in again to continue.');
             return;
         }
 
         setIsSubmittingAddress(true);
+        setError(null);
 
         try {
-            const response = await fetch(buildApiUrl('/api/addresses'), {
+            const response = await fetch(buildApiUrl('/api/account/addresses'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    sessionId,
-                    name: formState.fullName,
-                    phone: formState.phone,
-                    addressLine1: formState.addressLine1,
-                    addressLine2: formState.addressLine2,
-                    city: formState.city,
-                    state: formState.state,
-                    postalCode: formState.postalCode,
-                    country: formState.country,
-                }),
+                body: JSON.stringify(addressForm),
             });
 
             if (!response.ok) {
@@ -198,7 +259,9 @@ export default function Checkout() {
             }
 
             const payload = (await response.json()) as AddressResponse;
-            setAddressId(payload.data.id);
+            await loadAddresses();
+            setSelectedAddressId(payload.data.id);
+            setIsAddressFormOpen(false);
             setStep('payment');
         } catch (submitError) {
             setError(submitError instanceof Error ? submitError.message : 'Unable to save the shipping address.');
@@ -208,7 +271,7 @@ export default function Checkout() {
     };
 
     const handleOnlinePayment = async () => {
-        if (!token || !addressId || !sessionId) {
+        if (!token || !selectedAddress || !sessionId) {
             setError('Checkout session is incomplete. Refresh and try again.');
             return;
         }
@@ -225,7 +288,7 @@ export default function Checkout() {
                 },
                 body: JSON.stringify({
                     sessionId,
-                    addressId,
+                    addressId: selectedAddress.id,
                 }),
             });
 
@@ -251,9 +314,9 @@ export default function Checkout() {
                     description: 'Complete your Nawabi Aroma order',
                     order_id: checkoutPayload.data.razorpayOrderId,
                     prefill: {
-                        name: formState.fullName,
-                        email: formState.email,
-                        contact: formState.phone,
+                        name: selectedAddress.name,
+                        email: customer?.email,
+                        contact: selectedAddress.phone ?? customer?.phone ?? '',
                     },
                     handler: async (response) => {
                         try {
@@ -265,7 +328,7 @@ export default function Checkout() {
                                 },
                                 body: JSON.stringify({
                                     sessionId,
-                                    addressId,
+                                    addressId: selectedAddress.id,
                                     razorpayOrderId: response.razorpay_order_id,
                                     razorpayPaymentId: response.razorpay_payment_id,
                                     razorpaySignature: response.razorpay_signature,
@@ -277,6 +340,7 @@ export default function Checkout() {
                             }
 
                             const payload = (await orderResponse.json()) as OrderResponse;
+                            clearCart();
                             navigate(`/order-confirmation?orderId=${encodeURIComponent(payload.data.orderId)}`);
                             resolve();
                         } catch (handlerError) {
@@ -302,7 +366,7 @@ export default function Checkout() {
     };
 
     const handleCodOrder = async () => {
-        if (!token || !addressId || !sessionId) {
+        if (!token || !selectedAddress || !sessionId) {
             setError('Checkout session is incomplete. Refresh and try again.');
             return;
         }
@@ -319,7 +383,7 @@ export default function Checkout() {
                 },
                 body: JSON.stringify({
                     sessionId,
-                    addressId,
+                    addressId: selectedAddress.id,
                 }),
             });
 
@@ -328,6 +392,7 @@ export default function Checkout() {
             }
 
             const payload = (await response.json()) as OrderResponse;
+            clearCart();
             navigate(`/order-confirmation?orderId=${encodeURIComponent(payload.data.orderId)}`);
         } catch (submitError) {
             setError(submitError instanceof Error ? submitError.message : 'Unable to place your COD order.');
@@ -366,7 +431,7 @@ export default function Checkout() {
 
                     <div className="mt-6 space-y-4">
                         {cartItems.map((item) => (
-                            <div key={`${item.id}-${item.variantId}`} className="flex gap-4 rounded-3xl border border-[var(--glass-border)] bg-white/60 p-4">
+                            <div key={`${item.id}-${item.variantId}`} className="flex gap-4 rounded-3xl border border-[var(--glass-border)] bg-transparent p-4">
                                 <div className="h-20 w-20 overflow-hidden rounded-2xl bg-[var(--color-ink)]/5">
                                     {item.image ? <img alt={item.name} className="h-full w-full object-cover" src={item.image} /> : null}
                                 </div>
@@ -404,48 +469,138 @@ export default function Checkout() {
                     <div className="border-b border-[var(--glass-border)] pb-6">
                         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Checkout</p>
                         <h1 className="mt-3 font-display text-4xl font-light tracking-tight text-[var(--color-ink)]">
-                            {step === 'address' ? 'Step 1: Shipping address' : 'Step 2: Payment method'}
+                            {step === 'address' ? 'Step 1: Choose a delivery address' : 'Step 2: Payment method'}
                         </h1>
+                        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-muted)]">
+                            Saved addresses speed up repeat orders, and extra gift addresses stay ready whenever you need them.
+                        </p>
                     </div>
 
                     {step === 'address' ? (
-                        <form className="mt-8 space-y-6" onSubmit={handleAddressSubmit}>
-                            <div className="grid gap-6 sm:grid-cols-2">
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, fullName: event.target.value }))} placeholder="Full name" required value={formState.fullName} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, email: event.target.value }))} placeholder="Email" required type="email" value={formState.email} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5 sm:col-span-2" onChange={(event) => setFormState((current) => ({ ...current, addressLine1: event.target.value }))} placeholder="Address line 1" required value={formState.addressLine1} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5 sm:col-span-2" onChange={(event) => setFormState((current) => ({ ...current, addressLine2: event.target.value }))} placeholder="Address line 2 (optional)" value={formState.addressLine2} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, city: event.target.value }))} placeholder="City" required value={formState.city} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, state: event.target.value }))} placeholder="State" required value={formState.state} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, postalCode: event.target.value }))} placeholder="Postal code" required value={formState.postalCode} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5" onChange={(event) => setFormState((current) => ({ ...current, country: event.target.value }))} placeholder="Country" required value={formState.country} />
-                                <input className="rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5 sm:col-span-2" onChange={(event) => setFormState((current) => ({ ...current, phone: event.target.value }))} placeholder="Phone" value={formState.phone} />
+                        <div className="mt-8 space-y-6">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="font-display text-2xl font-light text-[var(--color-ink)]">Your saved destinations</p>
+                                    <p className="mt-1 text-sm text-[var(--text-muted)]">Select one below or add a new gift address.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <Link
+                                        className="inline-flex items-center justify-center rounded-full border border-[var(--glass-border)] px-5 py-3 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-ink)] transition hover:bg-[var(--color-ink)]/5"
+                                        to="/account/addresses"
+                                    >
+                                        Manage Address Book
+                                    </Link>
+                                    <button
+                                        className="inline-flex items-center justify-center rounded-full bg-[var(--color-ink)] px-5 py-3 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-canvas)] transition hover:opacity-85"
+                                        onClick={openNewAddressForm}
+                                        type="button"
+                                    >
+                                        Add New Address
+                                    </button>
+                                </div>
                             </div>
 
-                            {error ? <p className="rounded-2xl border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/5 px-4 py-3 text-sm text-[var(--color-primary)]">{error}</p> : null}
+                            {isLoadingAddresses ? (
+                                <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-6 text-sm text-[var(--text-muted)]">
+                                    Loading your saved addresses...
+                                </div>
+                            ) : addresses.length === 0 ? (
+                                <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-6 text-sm leading-relaxed text-[var(--text-muted)]">
+                                    This looks like your first order. Add your delivery address below and it will be saved automatically for next time.
+                                </div>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {addresses.map((address) => (
+                                        <AddressCard
+                                            key={address.id}
+                                            address={address}
+                                            selected={selectedAddressId === address.id}
+                                            onSelect={() => {
+                                                setSelectedAddressId(address.id);
+                                                setStep('payment');
+                                                setError(null);
+                                            }}
+                                            selectionLabel={selectedAddressId === address.id ? 'Continue' : 'Use this address'}
+                                        />
+                                    ))}
+                                </div>
+                            )}
 
-                            <button className="inline-flex rounded-full bg-[var(--color-ink)] px-8 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-canvas)] transition hover:opacity-85 disabled:opacity-60" disabled={isSubmittingAddress} type="submit">
-                                {isSubmittingAddress ? 'Saving Address...' : 'Continue to Payment'}
-                            </button>
-                        </form>
+                            {isAddressFormOpen ? (
+                                <form className="rounded-[32px] border border-[var(--glass-border)] bg-transparent p-6 sm:p-8" onSubmit={handleAddressSubmit}>
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                        <div>
+                                            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">New Address</p>
+                                            <h2 className="mt-2 font-display text-3xl font-light text-[var(--color-ink)]">Save a new delivery destination</h2>
+                                        </div>
+                                        {addresses.length > 0 ? (
+                                            <button
+                                                className="inline-flex items-center justify-center rounded-full border border-[var(--glass-border)] px-5 py-3 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-ink)] transition hover:bg-[var(--color-ink)]/5"
+                                                onClick={() => setIsAddressFormOpen(false)}
+                                                type="button"
+                                            >
+                                                Cancel
+                                            </button>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <AddressFormFields
+                                            onChange={(field, nextValue) => {
+                                                setAddressForm((current) => ({
+                                                    ...current,
+                                                    [field]: nextValue,
+                                                }));
+                                            }}
+                                            value={addressForm}
+                                        />
+                                    </div>
+
+                                    {error ? (
+                                        <p className="mt-6 rounded-2xl border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/5 px-4 py-3 text-sm text-[var(--color-primary)]">
+                                            {error}
+                                        </p>
+                                    ) : null}
+
+                                    <button
+                                        className="mt-6 inline-flex rounded-full bg-[var(--color-ink)] px-8 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-canvas)] transition hover:opacity-85 disabled:opacity-60"
+                                        disabled={isSubmittingAddress}
+                                        type="submit"
+                                    >
+                                        {isSubmittingAddress ? 'Saving Address...' : 'Save and Continue'}
+                                    </button>
+                                </form>
+                            ) : null}
+
+                            {!error && !isAddressFormOpen && selectedAddress ? (
+                                <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-5">
+                                    <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Ready to go</p>
+                                    <p className="mt-2 text-sm text-[var(--text-muted)]">
+                                        Selected address: <span className="text-[var(--color-ink)]">{selectedAddress.label || selectedAddress.name}</span>
+                                    </p>
+                                </div>
+                            ) : null}
+                        </div>
                     ) : (
                         <div className="mt-8 space-y-6">
+                            {selectedAddress ? <AddressSummary address={selectedAddress} /> : null}
+
                             <div className="grid gap-4 md:grid-cols-2">
                                 <button
-                                    className={`rounded-[28px] border p-6 text-left transition ${paymentMethod === 'online' ? 'border-[var(--color-ink)] bg-[var(--color-ink)]/5' : 'border-[var(--glass-border)] bg-white/55'}`}
+                                    className={`rounded-[28px] border p-6 text-left transition-all ${paymentMethod === 'online' ? 'border-[#28c8d7] bg-transparent' : 'border-[var(--glass-border)] bg-transparent'}`}
                                     onClick={() => setPaymentMethod('online')}
                                     type="button"
                                 >
-                                    <p className="font-display text-2xl font-light text-[var(--color-ink)]">Pay Online</p>
-                                    <p className="mt-2 text-sm text-[var(--text-muted)]">Razorpay: UPI, cards, and net banking.</p>
+                                    <p className={`font-display text-2xl font-light transition-all duration-300 ${paymentMethod === 'online' ? 'text-[#28c8d7] [text-shadow:0_0_12px_rgba(40,200,215,0.6)]' : 'text-[var(--color-ink)]'}`}>Pay Online</p>
+                                    <p className="mt-2 text-sm text-[var(--text-muted)]">Razorpay with UPI, cards, and net banking.</p>
                                 </button>
                                 <button
-                                    className={`rounded-[28px] border p-6 text-left transition ${paymentMethod === 'cod' ? 'border-[var(--color-ink)] bg-[var(--color-ink)]/5' : 'border-[var(--glass-border)] bg-white/55'}`}
+                                    className={`rounded-[28px] border p-6 text-left transition-all ${paymentMethod === 'cod' ? 'border-[#28c8d7] bg-transparent' : 'border-[var(--glass-border)] bg-transparent'}`}
                                     onClick={() => setPaymentMethod('cod')}
                                     type="button"
                                 >
-                                    <p className="font-display text-2xl font-light text-[var(--color-ink)]">Cash on Delivery</p>
-                                    <p className="mt-2 text-sm text-[var(--text-muted)]">Pay when the package reaches you.</p>
+                                    <p className={`font-display text-2xl font-light transition-all duration-300 ${paymentMethod === 'cod' ? 'text-[#28c8d7] [text-shadow:0_0_12px_rgba(40,200,215,0.6)]' : 'text-[var(--color-ink)]'}`}>Cash on Delivery</p>
+                                    <p className="mt-2 text-sm text-[var(--text-muted)]">Pay when the package reaches the selected address.</p>
                                 </button>
                             </div>
 
@@ -457,7 +612,7 @@ export default function Checkout() {
                                     onClick={() => setStep('address')}
                                     type="button"
                                 >
-                                    Back
+                                    Change Address
                                 </button>
                                 <button
                                     className="inline-flex items-center justify-center rounded-full bg-[var(--color-ink)] px-8 py-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--color-canvas)] transition hover:opacity-85 disabled:opacity-60"

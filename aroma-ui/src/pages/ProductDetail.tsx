@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { type StoreProduct, useStoreProduct } from '../data/products';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
+import { type StoreProduct, type StoreProductVariant, useStoreProduct } from '../data/products';
+import { buildCartLineId } from '../utils/cart';
+
+const MAX_PRODUCT_QUANTITY = 10;
 
 function formatPrice(value: number) {
     return `\u20B9${value.toLocaleString('en-IN')}`;
@@ -27,6 +31,18 @@ function NoteCard({ label, notes }: { label: string; notes: string[] }) {
             </div>
         </div>
     );
+}
+
+function getVariantStatusLabel(variant: StoreProductVariant) {
+    if (variant.stockQuantity <= 0) {
+        return 'Sold out';
+    }
+
+    if (variant.stockQuantity <= 3) {
+        return `Only ${variant.stockQuantity} left`;
+    }
+
+    return 'Ready to ship';
 }
 
 export function ProductDetail() {
@@ -143,18 +159,43 @@ function ProductDetailSkeleton() {
 function ProductDetailContent({ productData }: { productData: StoreProduct }) {
     const navigate = useNavigate();
     const { addToCart, openCart } = useCart();
+    const { isLoggedIn } = useCustomerAuth();
     const [quantity, setQuantity] = useState(1);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isBuyingNow, setIsBuyingNow] = useState(false);
     const [addFeedback, setAddFeedback] = useState<string | null>(null);
     const [addFeedbackTone, setAddFeedbackTone] = useState<'success' | 'error' | null>(null);
-    const hasVariant = productData.variantId !== null;
+    const [selectedVariantId, setSelectedVariantId] = useState<number | null>(productData.variantId);
+    const selectedVariant =
+        (selectedVariantId !== null ? productData.variants.find((variant) => variant.id === selectedVariantId) : null) ??
+        productData.variants[0] ??
+        null;
+    const hasVariant = selectedVariant !== null;
+    const hasAvailableVariant = productData.variants.some((variant) => variant.stockQuantity > 0);
+    const isSelectedVariantInStock = selectedVariant !== null && selectedVariant.stockQuantity > 0;
+    const activeSizeLabel = selectedVariant?.sizeLabel || productData.size || 'Limited Production';
+    const activePriceValue = selectedVariant?.price ?? productData.priceValue;
+    const canPurchaseSelectedVariant = hasVariant && isSelectedVariantInStock;
+    const maxSelectableQuantity = Math.max(1, Math.min(selectedVariant?.stockQuantity ?? MAX_PRODUCT_QUANTITY, MAX_PRODUCT_QUANTITY));
     const isDiscoveryProduct = productData.displayName.toLowerCase().includes('discovery');
+    const addToCartLabel = isAddingToCart ? 'Adding to Selection' : !hasVariant ? 'Unavailable' : canPurchaseSelectedVariant ? 'Add to Selection' : 'Out of Stock';
+    const buyNowLabel = isBuyingNow ? 'Redirecting to Checkout' : !hasVariant ? 'Unavailable' : canPurchaseSelectedVariant ? 'Buy Now' : 'Out of Stock';
 
     const handleAddToCart = async () => {
-        if (!hasVariant) {
+        if (!selectedVariant) {
             setAddFeedback('This product variant is unavailable right now.');
             setAddFeedbackTone('error');
+            return;
+        }
+
+        if (selectedVariant.stockQuantity <= 0) {
+            setAddFeedback('This bottle size is sold out right now.');
+            setAddFeedbackTone('error');
+            return;
+        }
+
+        if (!isLoggedIn) {
+            openCart();
             return;
         }
 
@@ -164,12 +205,12 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
 
         const result = await addToCart(
             {
-                id: productData.id,
+                id: buildCartLineId(productData.id, selectedVariant.id),
                 name: productData.displayName,
-                size: productData.size,
-                price: productData.priceValue,
+                size: activeSizeLabel,
+                price: activePriceValue,
                 image: productData.image,
-                variantId: productData.variantId ?? undefined,
+                variantId: selectedVariant.id,
             },
             quantity,
         );
@@ -188,9 +229,20 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
     };
 
     const handleBuyNow = async () => {
-        if (!hasVariant) {
+        if (!selectedVariant) {
             setAddFeedback('This product variant is unavailable right now.');
             setAddFeedbackTone('error');
+            return;
+        }
+
+        if (selectedVariant.stockQuantity <= 0) {
+            setAddFeedback('This bottle size is sold out right now.');
+            setAddFeedbackTone('error');
+            return;
+        }
+
+        if (!isLoggedIn) {
+            navigate('/account');
             return;
         }
 
@@ -200,12 +252,12 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
 
         const result = await addToCart(
             {
-                id: productData.id,
+                id: buildCartLineId(productData.id, selectedVariant.id),
                 name: productData.displayName,
-                size: productData.size,
-                price: productData.priceValue,
+                size: activeSizeLabel,
+                price: activePriceValue,
                 image: productData.image,
-                variantId: productData.variantId ?? undefined,
+                variantId: selectedVariant.id,
             },
             quantity,
         );
@@ -262,8 +314,8 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                             ) : null}
                         </h1>
                         <div className="mt-10 flex flex-col gap-3 border-t border-[var(--glass-border)] pt-6 sm:mt-12 sm:flex-row sm:items-baseline sm:justify-between sm:pt-8">
-                            <span className="font-mono text-[11px] tracking-widest text-[var(--text-muted)]">{productData.size}</span>
-                            <span className="font-mono text-xl font-light text-[var(--color-ink)]">{formatPrice(productData.priceValue)}</span>
+                            <span className="font-mono text-[11px] tracking-widest text-[var(--text-muted)]">{activeSizeLabel}</span>
+                            <span className="font-mono text-xl font-light text-[var(--color-ink)]">{formatPrice(activePriceValue)}</span>
                         </div>
                     </div>
 
@@ -271,6 +323,80 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                         <p>{productData.tagline}</p>
                         <p className="text-sm font-mono tracking-tight text-[var(--text-muted)]/60">{productData.description}</p>
                     </div>
+
+                    {productData.variants.length > 0 ? (
+                        <div className="mb-16 space-y-6 sm:mb-20">
+                            <div className="flex flex-col gap-3 border-t border-[var(--glass-border)] pt-6 sm:flex-row sm:items-end sm:justify-between sm:pt-8">
+                                <div>
+                                    <h3 className="font-display text-sm font-medium uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                                        Bottle Selection
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">
+                                        Choose the bottle size you want to add. Pricing and availability update for each variant.
+                                    </p>
+                                </div>
+                                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                                    {hasAvailableVariant ? 'Variant inventory live' : 'All variants currently sold out'}
+                                </p>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {productData.variants.map((variant) => {
+                                    const isSelected = selectedVariant?.id === variant.id;
+                                    const isOutOfStock = variant.stockQuantity <= 0;
+
+                                    return (
+                                        <button
+                                            aria-pressed={isSelected}
+                                            className={`rounded-[28px] border px-5 py-5 text-left transition-all ${
+                                                isSelected
+                                                    ? 'border-[var(--color-ink)] bg-[var(--color-ink)]/6 shadow-[0_16px_45px_rgba(15,15,15,0.08)]'
+                                                    : 'border-[var(--glass-border)] bg-[var(--glass-surface)] hover:border-[var(--color-ink)]/30 hover:bg-[var(--color-ink)]/5'
+                                            } ${isOutOfStock ? 'opacity-70' : ''}`}
+                                            key={variant.id}
+                                            onClick={() => {
+                                                setSelectedVariantId(variant.id);
+                                                setQuantity((currentQuantity) =>
+                                                    Math.min(
+                                                        currentQuantity,
+                                                        Math.max(1, Math.min(variant.stockQuantity || MAX_PRODUCT_QUANTITY, MAX_PRODUCT_QUANTITY)),
+                                                    ),
+                                                );
+                                                setAddFeedback(null);
+                                                setAddFeedbackTone(null);
+                                            }}
+                                            type="button"
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="font-display text-2xl font-light text-[var(--color-ink)]">{variant.sizeLabel}</p>
+                                                    <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--text-muted)]">
+                                                        {variant.sku}
+                                                    </p>
+                                                </div>
+                                                <p className="font-mono text-sm text-[var(--color-ink)]">{formatPrice(variant.price)}</p>
+                                            </div>
+                                            <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                                                {getVariantStatusLabel(variant)}
+                                            </p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex flex-col gap-2 rounded-[28px] border border-[var(--glass-border)] bg-[var(--glass-surface)] px-5 py-4">
+                                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--text-muted)]">Current selection</p>
+                                <p className="font-display text-2xl font-light text-[var(--color-ink)]">
+                                    {selectedVariant ? selectedVariant.sizeLabel : 'No variant configured'}
+                                </p>
+                                <p className="text-sm text-[var(--text-muted)]">
+                                    {selectedVariant
+                                        ? `${formatPrice(selectedVariant.price)} | ${getVariantStatusLabel(selectedVariant)}`
+                                        : 'This fragrance cannot be purchased until an admin creates at least one variant.'}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null}
 
                     <div className="mb-20 space-y-6 sm:mb-24 sm:space-y-8">
                         <h3 className="font-display text-sm font-medium uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -322,8 +448,9 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                                     </button>
                                     <span className="font-mono text-sm">{String(quantity).padStart(2, '0')}</span>
                                     <button
-                                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]"
-                                        onClick={() => setQuantity((currentQuantity) => currentQuantity + 1)}
+                                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)] disabled:opacity-40"
+                                        disabled={!canPurchaseSelectedVariant || quantity >= maxSelectableQuantity}
+                                        onClick={() => setQuantity((currentQuantity) => Math.min(maxSelectableQuantity, currentQuantity + 1))}
                                         type="button"
                                     >
                                         <span className="material-symbols-outlined text-sm">add</span>
@@ -332,19 +459,19 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                                 <div className="flex flex-1 flex-col gap-2 sm:flex-row">
                                     <button
                                         className="flex-1 bg-[var(--color-ink)] px-12 py-5 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-canvas)] transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                                        disabled={isAddingToCart || isBuyingNow || !hasVariant}
+                                        disabled={isAddingToCart || isBuyingNow || !canPurchaseSelectedVariant}
                                         onClick={handleAddToCart}
                                         type="button"
                                     >
-                                        {isAddingToCart ? 'Adding to Selection' : hasVariant ? 'Add to Selection' : 'Unavailable'}
+                                        {addToCartLabel}
                                     </button>
                                     <button
                                         className="flex-1 border border-[var(--glass-border)] bg-[var(--color-canvas)] px-12 py-5 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-ink)] transition-all hover:bg-[var(--color-ink)]/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                                        disabled={isAddingToCart || isBuyingNow || !hasVariant}
+                                        disabled={isAddingToCart || isBuyingNow || !canPurchaseSelectedVariant}
                                         onClick={handleBuyNow}
                                         type="button"
                                     >
-                                        {isBuyingNow ? 'Redirecting to Checkout' : hasVariant ? 'Buy Now' : 'Unavailable'}
+                                        {buyNowLabel}
                                     </button>
                                 </div>
                             </div>
@@ -362,7 +489,9 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                                 ) : null}
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="font-mono text-[11px] tracking-wide text-[var(--text-muted)]">
-                                        Includes a complimentary 2ml sample to test before opening.
+                                        {selectedVariant
+                                            ? `${selectedVariant.sizeLabel} selected | ${formatPrice(activePriceValue)} each`
+                                            : 'Includes a complimentary 2ml sample to test before opening.'}
                                     </p>
                                     {!isDiscoveryProduct ? (
                                         <Link

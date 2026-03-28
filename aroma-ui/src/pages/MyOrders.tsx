@@ -75,7 +75,7 @@ function getStatusClasses(status: string) {
         case 'cancelled':
             return 'border-rose-400/25 bg-rose-500/10 text-rose-700';
         default:
-            return 'border-[var(--glass-border)] bg-white/50 text-[var(--text-muted)]';
+            return 'border-[var(--glass-border)] bg-transparent text-[var(--text-muted)]';
     }
 }
 

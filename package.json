@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch server/index.ts",
+    "db:init": "npm run build && node dist/init_db.js",
+    "db:test": "npm run build && node dist/db_test.js",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server/index.js"
   },

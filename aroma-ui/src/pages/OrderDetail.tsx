@@ -109,7 +109,7 @@ function resolveProductImage(productName: string, catalog: Array<{ displayName: 
 
 function StatCard({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-2xl border border-[var(--glass-border)] bg-white/60 px-5 py-4">
+        <div className="rounded-2xl border border-[var(--glass-border)] bg-transparent px-5 py-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">{label}</p>
             <p className="mt-2 text-sm font-light text-[var(--color-ink)] sm:text-base">{value}</p>
         </div>
@@ -251,7 +251,7 @@ export default function OrderDetail() {
                     <StatCard label="Total amount" value={formatPrice(order.total)} />
                 </div>
 
-                <section className="mt-10 rounded-[32px] border border-[var(--glass-border)] bg-white/45 p-6 sm:p-8">
+                <section className="mt-10 rounded-[32px] border border-[var(--glass-border)] bg-transparent p-6 sm:p-8">
                     <div className="border-b border-[var(--glass-border)] pb-6">
                         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Shipping address</p>
                         <h2 className="mt-3 font-display text-3xl font-light tracking-tight text-[var(--color-ink)]">
@@ -277,7 +277,7 @@ export default function OrderDetail() {
                     )}
                 </section>
 
-                <section className="mt-10 rounded-[32px] border border-[var(--glass-border)] bg-white/45 p-6 sm:p-8">
+                <section className="mt-10 rounded-[32px] border border-[var(--glass-border)] bg-transparent p-6 sm:p-8">
                     <div className="flex flex-col gap-3 border-b border-[var(--glass-border)] pb-6 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Items</p>

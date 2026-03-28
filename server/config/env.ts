@@ -1,27 +1,20 @@
 import 'dotenv/config';
 import { z } from 'zod';
 import { logger } from '../../services/logger.js';
+import { resolveDatabaseConfig } from './databaseConfig.js';
 
 const PRODUCTION_MIN_JWT_SECRET_LENGTH = 32;
+const databaseConfig = resolveDatabaseConfig(process.env);
 
 const envSchema = z.object({
     PORT: z.coerce.number().int().positive().default(4000),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    DATABASE_URL: z.string().min(1),
-    DATABASE_SSL: z
-        .string()
-        .optional()
-        .transform((value) => value === 'true'),
-    DATABASE_SSL_REJECT_UNAUTHORIZED: z
-        .string()
-        .optional()
-        .transform((value) => {
-            if (value === undefined) {
-                return undefined;
-            }
-
-            return value !== 'false';
-        }),
+    DATABASE_MODE: z.enum(['LOCAL_DEV', 'PRODUCTION']).optional(),
+    DATABASE_URL: z.string().optional(),
+    DATABASE_URL_POOLER: z.string().optional(),
+    DATABASE_URL_DIRECT: z.string().optional(),
+    DATABASE_SSL: z.string().optional(),
+    DATABASE_SSL_REJECT_UNAUTHORIZED: z.string().optional(),
     DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
     DATABASE_IDLE_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(30000),
     DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(5000),
@@ -66,6 +59,19 @@ const hasAnyRazorpayConfig =
     Boolean(parsed.data.RAZORPAY_KEY_ID) ||
     Boolean(parsed.data.RAZORPAY_KEY_SECRET) ||
     Boolean(parsed.data.RAZORPAY_WEBHOOK_SECRET);
+const hasAnyStorageConfig =
+    Boolean(parsed.data.AWS_REGION) ||
+    Boolean(parsed.data.AWS_ACCESS_KEY_ID) ||
+    Boolean(parsed.data.AWS_SECRET_ACCESS_KEY) ||
+    Boolean(parsed.data.S3_BUCKET_NAME) ||
+    Boolean(parsed.data.S3_PUBLIC_BASE_URL) ||
+    Boolean(parsed.data.S3_ENDPOINT);
+const hasCompleteStorageConfig =
+    Boolean(parsed.data.AWS_REGION) &&
+    Boolean(parsed.data.AWS_ACCESS_KEY_ID) &&
+    Boolean(parsed.data.AWS_SECRET_ACCESS_KEY) &&
+    Boolean(parsed.data.S3_BUCKET_NAME) &&
+    Boolean(parsed.data.S3_PUBLIC_BASE_URL);
 
 if (
     hasAnyRazorpayConfig &&
@@ -82,8 +88,27 @@ if (parsed.data.RESEND_API_KEY && !parsed.data.ORDER_EMAIL_FROM) {
     throw new Error('ORDER_EMAIL_FROM must be configured when RESEND_API_KEY is set.');
 }
 
+if (hasAnyStorageConfig && !hasCompleteStorageConfig) {
+    throw new Error(
+        'AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME, and S3_PUBLIC_BASE_URL must be configured together.',
+    );
+}
+
+if (
+    parsed.data.NODE_ENV === 'production' &&
+    (!parsed.data.RAZORPAY_KEY_ID || !parsed.data.RAZORPAY_KEY_SECRET || !parsed.data.RAZORPAY_WEBHOOK_SECRET)
+) {
+    throw new Error('Razorpay must be fully configured in production.');
+}
+
+if (parsed.data.NODE_ENV === 'production' && (!parsed.data.RESEND_API_KEY || !parsed.data.ORDER_EMAIL_FROM)) {
+    throw new Error('Resend email delivery must be configured in production.');
+}
+
 export const env = {
     ...parsed.data,
-    DATABASE_SSL_REJECT_UNAUTHORIZED:
-        parsed.data.DATABASE_SSL_REJECT_UNAUTHORIZED ?? parsed.data.NODE_ENV === 'production',
+    DATABASE_MODE: databaseConfig.databaseMode,
+    DATABASE_URL: databaseConfig.connectionString,
+    DATABASE_SSL: databaseConfig.sslEnabled,
+    DATABASE_SSL_REJECT_UNAUTHORIZED: databaseConfig.sslRejectUnauthorized,
 };

@@ -9,6 +9,7 @@ import { AdminAuthProvider } from './context/AdminAuthContext';
 import { CartProvider } from './context/CartContext';
 import { CustomerAuthProvider } from './context/CustomerAuthContext';
 import { About } from './pages/About';
+import { AccountAddresses } from './pages/AccountAddresses';
 import { AccountDashboard } from './pages/AccountDashboard';
 import { Cart } from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -40,48 +41,59 @@ function ScrollToTop() {
     return null;
 }
 
+function AppContent() {
+    const { pathname } = useLocation();
+    const isAdminRoute = pathname.startsWith('/admin');
+
+    return (
+        <div className="min-h-screen overflow-x-hidden bg-[var(--color-canvas)] text-[var(--color-ink)] selection:bg-[var(--color-primary)]/20 selection:text-[var(--color-primary)] font-body transition-colors duration-300">
+            <ScrollToTop />
+            {isAdminRoute ? null : <Navbar />}
+            <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/shop" element={<Shop />} />
+                <Route path="/product/:slug" element={<ProductDetail />} />
+                <Route path="/account/login" element={<CustomerLogin />} />
+                <Route path="/account/register" element={<CustomerRegister />} />
+                <Route element={<CustomerRoute />}>
+                    <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/order-confirmation" element={<OrderConfirmation />} />
+                    <Route path="/orders" element={<OrderHistory />} />
+                    <Route path="/account" element={<AccountDashboard />} />
+                    <Route path="/account/addresses" element={<AccountAddresses />} />
+                    <Route path="/account/profile" element={<Navigate replace to="/account" />} />
+                </Route>
+                <Route path="/my-orders" element={<Navigate replace to="/orders" />} />
+                <Route path="/order-success" element={<Navigate replace to="/order-confirmation" />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route element={<AdminRoute />}>
+                    <Route element={<AdminLayout />}>
+                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin/products" element={<AdminProducts />} />
+                        <Route path="/admin/orders" element={<AdminOrders />} />
+                        <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
+                        <Route path="/admin/articles" element={<AdminArticles />} />
+                        <Route path="/admin/pages" element={<AdminPages />} />
+                    </Route>
+                </Route>
+            </Routes>
+            {isAdminRoute ? null : <Footer />}
+            <Cart />
+        </div>
+    );
+}
+
 function App() {
     return (
         <AdminAuthProvider>
             <CustomerAuthProvider>
                 <CartProvider>
                     <Router>
-                        <div className="min-h-screen overflow-x-hidden bg-[var(--color-canvas)] text-[var(--color-ink)] selection:bg-[var(--color-primary)]/20 selection:text-[var(--color-primary)] font-body transition-colors duration-300">
-                            <ScrollToTop />
-                            <Navbar />
-                            <Routes>
-                                <Route path="/" element={<Home />} />
-                                <Route path="/about" element={<About />} />
-                                <Route path="/contact" element={<Contact />} />
-                                <Route path="/terms" element={<Terms />} />
-                                <Route path="/privacy" element={<Privacy />} />
-                                <Route path="/shop" element={<Shop />} />
-                                <Route path="/product/:slug" element={<ProductDetail />} />
-                                <Route path="/account/login" element={<CustomerLogin />} />
-                                <Route path="/account/register" element={<CustomerRegister />} />
-                                <Route element={<CustomerRoute />}>
-                                    <Route path="/checkout" element={<Checkout />} />
-                                    <Route path="/order-confirmation" element={<OrderConfirmation />} />
-                                    <Route path="/orders" element={<OrderHistory />} />
-                                    <Route path="/account" element={<AccountDashboard />} />
-                                </Route>
-                                <Route path="/my-orders" element={<Navigate replace to="/orders" />} />
-                                <Route path="/order-success" element={<Navigate replace to="/order-confirmation" />} />
-                                <Route path="/admin/login" element={<AdminLogin />} />
-                                <Route element={<AdminRoute />}>
-                                    <Route element={<AdminLayout />}>
-                                        <Route path="/admin" element={<AdminDashboard />} />
-                                        <Route path="/admin/products" element={<AdminProducts />} />
-                                        <Route path="/admin/orders" element={<AdminOrders />} />
-                                        <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
-                                        <Route path="/admin/articles" element={<AdminArticles />} />
-                                        <Route path="/admin/pages" element={<AdminPages />} />
-                                    </Route>
-                                </Route>
-                            </Routes>
-                            <Footer />
-                            <Cart />
-                        </div>
+                        <AppContent />
                     </Router>
                 </CartProvider>
             </CustomerAuthProvider>

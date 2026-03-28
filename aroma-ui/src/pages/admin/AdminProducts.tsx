@@ -1,9 +1,10 @@
 import { ImagePlus, Pencil, Plus, Power, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { buildApiUrl } from '../../lib/api';
 
-const PRODUCTS_ENDPOINT = '/api/admin/products';
-const ADMIN_UPLOAD_ENDPOINT = '/api/admin/upload';
+const PRODUCTS_ENDPOINT = buildApiUrl('/api/admin/products');
+const ADMIN_UPLOAD_ENDPOINT = buildApiUrl('/api/admin/upload');
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'] as const;
 const fieldClassName =
     'w-full rounded-2xl border border-[var(--glass-border)] bg-white/5 px-4 py-3 text-sm text-[var(--color-ink)] outline-none transition-colors placeholder:text-[var(--text-muted)]/70 focus:border-[var(--color-primary)] focus:bg-white/7';

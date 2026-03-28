@@ -111,7 +111,7 @@ function resolveProductImage(productName: string, catalog: Array<{ displayName: 
 
 function MetaStat({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-2xl border border-[var(--glass-border)] bg-white/60 px-5 py-4">
+        <div className="rounded-2xl border border-[var(--glass-border)] bg-transparent px-5 py-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">{label}</p>
             <p className="mt-2 text-sm font-light text-[var(--color-ink)] sm:text-base">{value}</p>
         </div>
@@ -269,7 +269,7 @@ export default function OrderSuccess() {
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-8 lg:px-12 lg:pb-28 lg:pt-32">
             <section className="overflow-hidden rounded-[36px] border border-[var(--glass-border)] bg-[var(--color-canvas)]/86 shadow-[0_24px_80px_rgba(15,15,15,0.08)] backdrop-blur-xl">
                 <div className="border-b border-[var(--glass-border)] bg-[radial-gradient(circle_at_top,_rgba(194,166,109,0.14),_transparent_46%)] px-6 py-10 text-center sm:px-10 sm:py-14">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[var(--glass-border)] bg-white/70 text-[var(--color-ink)] shadow-sm">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[var(--glass-border)] bg-transparent text-[var(--color-ink)] shadow-sm">
                         <span className="font-mono text-xs uppercase tracking-[0.24em]">OK</span>
                     </div>
                     <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.32em] text-[var(--text-muted)]">Order confirmed</p>
@@ -306,7 +306,7 @@ export default function OrderSuccess() {
                                 {order.items.map((item) => (
                                     <div
                                         key={`${order.orderId}-${item.variantId}`}
-                                        className="flex gap-4 rounded-3xl border border-[var(--glass-border)] bg-white/60 p-4"
+                                        className="flex gap-4 rounded-3xl border border-[var(--glass-border)] bg-transparent p-4"
                                     >
                                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[var(--color-ink)]/5">
                                             <img
@@ -340,7 +340,7 @@ export default function OrderSuccess() {
                         </div>
                     </div>
 
-                    <aside className="border-t border-[var(--glass-border)] bg-white/45 px-6 py-8 lg:border-l lg:border-t-0 lg:px-8 lg:py-10">
+                    <aside className="border-t border-[var(--glass-border)] bg-transparent px-6 py-8 lg:border-l lg:border-t-0 lg:px-8 lg:py-10">
                         <div className="rounded-[28px] border border-[var(--glass-border)] bg-[var(--color-canvas)]/78 p-6 shadow-sm">
                             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Totals</p>
                             <div className="mt-6 space-y-4">

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { buildApiUrl } from '../lib/api';
+import { buildCartLineId } from '../utils/cart';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
 const CART_ADD_ENDPOINT = '/api/cart/add';
@@ -55,6 +56,7 @@ interface CartContextValue {
     removeFromCart: (id: string) => void;
     incrementItem: (id: string) => void;
     decrementItem: (id: string) => void;
+    clearCart: () => void;
     toggleCart: () => void;
     openCart: () => void;
     closeCart: () => void;
@@ -160,7 +162,7 @@ async function getCartErrorMessage(response: Response, fallbackMessage: string) 
 
 function mapCartApiItem(item: CartApiItem): CartItem {
     return {
-        id: item.productSlug,
+        id: buildCartLineId(item.productSlug, item.variantId),
         name: item.productName,
         size: item.variant,
         price: item.price,
@@ -428,6 +430,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setIsCartOpen((currentState) => !currentState);
     };
 
+    const clearCart = () => {
+        setCartItems([]);
+    };
+
     const openCart = () => {
         setIsCartOpen(true);
     };
@@ -450,6 +456,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 removeFromCart,
                 incrementItem,
                 decrementItem,
+                clearCart,
                 toggleCart,
                 openCart,
                 closeCart,

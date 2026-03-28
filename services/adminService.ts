@@ -113,7 +113,6 @@ interface AdminOrderRow {
     totalAmount: number | string;
     status: OrderStatus;
     trackingNumber: string | null;
-    stripePaymentIntentId: string | null;
     paymentMethod: PaymentMethod | null;
     paymentStatus: PaymentStatus | null;
     createdAt: Date | string;
@@ -150,7 +149,6 @@ interface UpdatedAdminOrderRow {
     totalAmount: number | string;
     status: OrderStatus;
     trackingNumber: string | null;
-    stripePaymentIntentId: string | null;
     createdAt: Date | string;
 }
 
@@ -259,6 +257,16 @@ function isPromoCodeConflict(error: unknown) {
     const databaseError = error as { code?: string; constraint?: string };
 
     return databaseError.code === POSTGRES_UNIQUE_VIOLATION && databaseError.constraint === 'promo_codes_code_key';
+}
+
+function isProductSlugConflict(error: unknown) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    const databaseError = error as { code?: string; constraint?: string };
+
+    return databaseError.code === POSTGRES_UNIQUE_VIOLATION && databaseError.constraint === 'products_slug_key';
 }
 
 async function assertProductExists(productId: number) {
@@ -437,90 +445,106 @@ export async function getAdminProductDetailRecord(id: number) {
 }
 
 export async function createAdminProductRecord(payload: ProductPayload) {
-    const result = await query(
-        `
-            INSERT INTO products (
-                slug,
-                name,
-                sub_name,
-                tagline,
-                description,
-                size,
-                base_price,
-                is_active
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING
-                id,
-                slug,
-                name,
-                sub_name AS "subName",
-                tagline,
-                description,
-                size,
-                base_price AS "basePrice",
-                is_active AS "isActive",
-                created_at AS "createdAt"
-        `,
-        [
-            payload.slug,
-            payload.name,
-            payload.subName ?? null,
-            payload.tagline ?? null,
-            payload.description ?? null,
-            payload.size ?? null,
-            payload.basePrice,
-            payload.isActive,
-        ],
-    );
+    try {
+        const result = await query(
+            `
+                INSERT INTO products (
+                    slug,
+                    name,
+                    sub_name,
+                    tagline,
+                    description,
+                    size,
+                    base_price,
+                    is_active
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING
+                    id,
+                    slug,
+                    name,
+                    sub_name AS "subName",
+                    tagline,
+                    description,
+                    size,
+                    base_price AS "basePrice",
+                    is_active AS "isActive",
+                    created_at AS "createdAt"
+            `,
+            [
+                payload.slug,
+                payload.name,
+                payload.subName ?? null,
+                payload.tagline ?? null,
+                payload.description ?? null,
+                payload.size ?? null,
+                payload.basePrice,
+                payload.isActive,
+            ],
+        );
 
-    return result.rows[0];
+        return result.rows[0];
+    } catch (error) {
+        if (isProductSlugConflict(error)) {
+            throw new HttpError(409, 'A product with this slug already exists.');
+        }
+
+        throw error;
+    }
 }
 
 export async function updateAdminProductRecord(id: number, payload: ProductPayload) {
-    const result = await query(
-        `
-            UPDATE products
-            SET
-                slug = $2,
-                name = $3,
-                sub_name = $4,
-                tagline = $5,
-                description = $6,
-                size = $7,
-                base_price = $8,
-                is_active = $9
-            WHERE id = $1
-            RETURNING
+    try {
+        const result = await query(
+            `
+                UPDATE products
+                SET
+                    slug = $2,
+                    name = $3,
+                    sub_name = $4,
+                    tagline = $5,
+                    description = $6,
+                    size = $7,
+                    base_price = $8,
+                    is_active = $9
+                WHERE id = $1
+                RETURNING
+                    id,
+                    slug,
+                    name,
+                    sub_name AS "subName",
+                    tagline,
+                    description,
+                    size,
+                    base_price AS "basePrice",
+                    is_active AS "isActive",
+                    created_at AS "createdAt"
+            `,
+            [
                 id,
-                slug,
-                name,
-                sub_name AS "subName",
-                tagline,
-                description,
-                size,
-                base_price AS "basePrice",
-                is_active AS "isActive",
-                created_at AS "createdAt"
-        `,
-        [
-            id,
-            payload.slug,
-            payload.name,
-            payload.subName ?? null,
-            payload.tagline ?? null,
-            payload.description ?? null,
-            payload.size ?? null,
-            payload.basePrice,
-            payload.isActive,
-        ],
-    );
+                payload.slug,
+                payload.name,
+                payload.subName ?? null,
+                payload.tagline ?? null,
+                payload.description ?? null,
+                payload.size ?? null,
+                payload.basePrice,
+                payload.isActive,
+            ],
+        );
 
-    if (result.rowCount === 0) {
-        throw new HttpError(404, 'Product not found.');
+        if (result.rowCount === 0) {
+            throw new HttpError(404, 'Product not found.');
+        }
+
+        return result.rows[0];
+    } catch (error) {
+        if (isProductSlugConflict(error)) {
+            throw new HttpError(409, 'A product with this slug already exists.');
+        }
+
+        throw error;
     }
-
-    return result.rows[0];
 }
 
 export async function createAdminProductImageRecord(productId: number, payload: ProductImagePayload) {
@@ -830,7 +854,6 @@ export async function listAdminOrders() {
                 o.total_amount AS "totalAmount",
                 o.status,
                 o.tracking_number AS "trackingNumber",
-                o.stripe_payment_intent_id AS "stripePaymentIntentId",
                 o.payment_method AS "paymentMethod",
                 payment.status AS "paymentStatus",
                 o.created_at AS "createdAt",
@@ -925,7 +948,6 @@ export async function updateAdminOrderRecord(id: number, payload: OrderUpdatePay
                 total_amount AS "totalAmount",
                 status,
                 tracking_number AS "trackingNumber",
-                stripe_payment_intent_id AS "stripePaymentIntentId",
                 created_at AS "createdAt"
         `,
         [id, hasStatus, payload.status ?? null, hasTrackingNumber, payload.trackingNumber ?? null],

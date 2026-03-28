@@ -2,12 +2,8 @@ import { HttpError } from '../middleware/errorHandler.js';
 import type { CheckoutRequest, CheckoutSessionResponse, PricedCartItem } from '../models/types.js';
 import { query } from '../server/config/database.js';
 import { env } from '../server/config/env.js';
+import { ensureReusableActiveCart } from './cartRecoveryService.js';
 import { createRazorpayOrder } from './paymentService.js';
-
-interface CartRow {
-    id: number | string;
-    customer_id: number | string | null;
-}
 
 interface AddressRow {
     id: number | string;
@@ -29,41 +25,19 @@ function buildReceipt(cartId: number) {
     return `cart-${cartId}-${Date.now()}`.slice(0, 40);
 }
 
-async function getActiveCart(sessionId: string) {
-    const result = await query<CartRow>(
-        `
-            SELECT
-                id,
-                customer_id
-            FROM carts
-            WHERE session_id = $1
-              AND status = 'active'
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 1
-        `,
-        [sessionId],
-    );
-
-    if (result.rowCount === 0) {
-        throw new HttpError(404, 'Cart not found.');
-    }
-
-    return {
-        id: Number(result.rows[0].id),
-        customerId: result.rows[0].customer_id === null ? null : Number(result.rows[0].customer_id),
-    };
-}
-
-async function assertAddressExists(sessionId: string, addressId: number) {
+async function assertAddressExists(sessionId: string, addressId: number, customerId: number) {
     const result = await query<AddressRow>(
         `
             SELECT id
             FROM addresses
             WHERE id = $1
-              AND session_id = $2
+              AND (
+                  customer_id = $2
+                  OR session_id = $3
+              )
             LIMIT 1
         `,
-        [addressId, sessionId],
+        [addressId, customerId, sessionId],
     );
 
     if (result.rowCount === 0) {
@@ -126,13 +100,15 @@ export async function createCheckoutSession(payload: CheckoutRequest, customerId
         throw new HttpError(503, 'Razorpay is not configured.');
     }
 
-    const cart = await getActiveCart(payload.sessionId);
+    const cart = await ensureReusableActiveCart(
+        {
+            sessionId: payload.sessionId,
+            customerId,
+        },
+        { query },
+    );
 
-    if (cart.customerId !== null && cart.customerId !== customerId) {
-        throw new HttpError(403, 'Cart belongs to a different customer.');
-    }
-
-    await assertAddressExists(payload.sessionId, payload.addressId);
+    await assertAddressExists(payload.sessionId, payload.addressId, customerId);
 
     const items = await getCartItems(cart.id);
     const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ProductCard, ProductCardSkeleton, type Product } from '../components/ProductCard';
 import { useStoreProducts } from '../data/products';
+import { useScrollDirection } from '../hooks/useScrollDirection';
 
 const filterCategories = ['Woody', 'Floral', 'Fresh', 'Oriental', 'Citrus'] as const;
 const activeFilterButtonClass =
@@ -9,6 +11,27 @@ const inactiveFilterButtonClass =
     'whitespace-nowrap text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--color-ink)]';
 
 export function Shop() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { scrollDirection, isScrolledPast } = useScrollDirection();
+    const isScrolledDown = scrollDirection === 'down' && isScrolledPast;
+    const [successMessage, setSuccessMessage] = useState<string | null>(() => {
+        if (location.state && typeof location.state === 'object' && 'message' in location.state && typeof location.state.message === 'string') {
+            return location.state.message;
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        if (successMessage) {
+            navigate(location.pathname, { replace: true, state: {} });
+            const timer = setTimeout(() => {
+                setSuccessMessage(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage, navigate, location.pathname]);
+
     const [activeFilter, setActiveFilter] = useState<string>('All Scents');
     const { products, isLoading, error } = useStoreProducts();
     const cardProducts: Product[] = products.map((product) => ({
@@ -41,6 +64,14 @@ export function Shop() {
 
     return (
         <main className="relative z-10 mx-auto flex max-w-[1400px] flex-col items-center px-4 pb-24 pt-28 md:px-8 md:pb-20 md:pt-32">
+            {successMessage ? (
+                <div className="mb-4 w-full text-center">
+                    <p className="inline-block rounded-full border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/5 px-6 py-2.5 text-sm font-medium tracking-wide text-[var(--color-primary)] opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
+                        {successMessage}
+                    </p>
+                </div>
+            ) : null}
+
             <header className="mb-14 text-center opacity-0 animate-[fadeIn_1s_ease-out_forwards] md:mb-24">
                 <h1 className="mb-4 font-display text-4xl font-light tracking-tight text-[var(--color-ink)] sm:text-5xl md:mb-6 md:text-7xl lg:text-8xl">
                     THE COLLECTION
@@ -54,7 +85,7 @@ export function Shop() {
                 {isLoading ? 'Loading the Debut Collection' : `The Debut Collection - ${filteredProducts.length} Ensembles`}
             </p>
 
-            <div className="sticky top-20 z-20 mb-12 flex w-full justify-center opacity-0 animate-[fadeIn_1s_ease-out_0.2s_forwards] md:top-28 md:mb-16">
+            <div className={`sticky ${isScrolledDown ? 'top-4 md:top-8' : 'top-[80px] md:top-[124px]'} z-20 mb-12 flex w-full justify-center opacity-0 transition-all duration-500 ease-in-out animate-[fadeIn_1s_ease-out_0.2s_forwards] md:mb-16`}>
                 <div className="inline-flex w-full max-w-full rounded-[28px] glass-panel px-1 py-1.5 shadow-sm md:w-auto md:rounded-full md:px-6 md:py-3">
                     <div className="no-scrollbar flex items-center gap-5 overflow-x-auto px-3 md:gap-8 md:px-4">
                         <button

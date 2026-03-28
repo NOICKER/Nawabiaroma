@@ -25,7 +25,6 @@ interface AdminOrderSummary {
     trackingNumber: string | null;
     paymentMethod: PaymentMethod;
     paymentStatus: PaymentStatus;
-    stripePaymentIntentId?: string | null;
     createdAt: string;
     customerEmail: string | null;
     itemCount: number;

@@ -50,6 +50,14 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
     }
 
     const providerEventId = getProviderEventId(event);
+    logger.info({
+        event_type: 'razorpay_webhook_received',
+        outcome: 'success',
+        ...requestContext,
+        provider_event_id: providerEventId,
+        webhook_event: event.event,
+        payment_id: event.payload?.payment?.entity?.id,
+    });
     const webhookState = await beginWebhookProcessing({
         provider: 'razorpay',
         providerEventId,
@@ -58,6 +66,14 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
     });
 
     if (webhookState.alreadyProcessed) {
+        logger.info({
+            event_type: 'razorpay_webhook_duplicate',
+            outcome: 'success',
+            ...requestContext,
+            provider_event_id: providerEventId,
+            webhook_event: event.event,
+            status: webhookState.status,
+        });
         res.status(200).json({ received: true, duplicate: true });
         return;
     }
@@ -95,6 +111,13 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
         }
 
         await completeWebhookProcessing(providerEventId);
+        logger.info({
+            event_type: 'razorpay_webhook_completed',
+            outcome: 'success',
+            ...requestContext,
+            provider_event_id: providerEventId,
+            webhook_event: event.event,
+        });
     } catch (error) {
         await failWebhookProcessing(providerEventId, error instanceof Error ? error.message : 'Unknown webhook error');
 

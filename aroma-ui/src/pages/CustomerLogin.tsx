@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import type { CustomerProfile } from '../context/types';
 import { buildApiUrl } from '../lib/api';
@@ -22,14 +22,11 @@ async function getErrorMessage(response: Response, fallbackMessage: string) {
 
 export function CustomerLogin() {
     const navigate = useNavigate();
-    const location = useLocation();
     const { login } = useCustomerAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const next = typeof location.state === 'object' && location.state && 'next' in location.state ? location.state.next : '/account';
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -54,7 +51,7 @@ export function CustomerLogin() {
 
             const payload = (await response.json()) as AuthResponse;
             login(payload.data);
-            navigate(typeof next === 'string' ? next : '/account', { replace: true });
+            navigate('/shop', { replace: true, state: { message: 'you are now logged in , enjoy shopping' } });
         } catch (submitError) {
             setError(submitError instanceof Error ? submitError.message : 'Unable to sign in right now.');
         } finally {
@@ -71,7 +68,7 @@ export function CustomerLogin() {
                         Sign in to continue to checkout
                     </h1>
                     <p className="mt-4 max-w-xl text-base font-light leading-relaxed text-[var(--text-muted)]">
-                        Your order history, confirmation pages, and checkout are linked to your Nawabi Aroma account.
+                        Your orders, saved delivery addresses, and gifting-ready checkout all live inside your Nawabi Aroma account.
                     </p>
                 </section>
 
@@ -80,7 +77,7 @@ export function CustomerLogin() {
                         <label className="block space-y-3">
                             <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Email</span>
                             <input
-                                className="w-full rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-ink)]"
+                                className="w-full rounded-2xl border border-[var(--glass-border)] bg-transparent px-4 py-3.5 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-ink)]"
                                 onChange={(event) => setEmail(event.target.value)}
                                 required
                                 type="email"
@@ -91,7 +88,7 @@ export function CustomerLogin() {
                         <label className="block space-y-3">
                             <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Password</span>
                             <input
-                                className="w-full rounded-2xl border border-[var(--glass-border)] bg-white/70 px-4 py-3.5 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-ink)]"
+                                className="w-full rounded-2xl border border-[var(--glass-border)] bg-transparent px-4 py-3.5 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-ink)]"
                                 onChange={(event) => setPassword(event.target.value)}
                                 required
                                 type="password"

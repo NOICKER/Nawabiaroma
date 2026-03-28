@@ -1,20 +1,35 @@
 import jwt from 'jsonwebtoken';
 import { HttpError } from '../middleware/errorHandler.js';
 import type { CustomerAuthResponse, CustomerProfile, AuthTokenPayload } from '../models/types.js';
-import { query } from '../server/config/database.js';
+import { query, withTransaction } from '../server/config/database.js';
 import { env } from '../server/config/env.js';
+import { createCustomerAddress } from './addressService.js';
 import { hashPassword, verifyPassword } from './passwordService.js';
 
 interface CustomerRow {
     id: number | string;
     name: string | null;
     email: string;
+    phone: string | null;
     password_hash: string | null;
     created_at: Date | string;
 }
 
-interface CustomerAuthInput {
-    name?: string;
+interface CustomerRegisterInput {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    addressLabel?: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+}
+
+interface CustomerLoginInput {
     email: string;
     password: string;
 }
@@ -28,6 +43,7 @@ function mapCustomerProfile(row: CustomerRow): CustomerProfile {
         id: Number(row.id),
         name: row.name,
         email: row.email,
+        phone: row.phone,
         createdAt: toIsoString(row.created_at),
     };
 }
@@ -54,6 +70,7 @@ async function getCustomerByEmail(email: string) {
                 id,
                 name,
                 email,
+                phone,
                 password_hash,
                 created_at
             FROM customers
@@ -66,9 +83,10 @@ async function getCustomerByEmail(email: string) {
     return result.rows[0] ?? null;
 }
 
-export async function registerCustomer(input: CustomerAuthInput): Promise<CustomerAuthResponse> {
+export async function registerCustomer(input: CustomerRegisterInput): Promise<CustomerAuthResponse> {
     const normalizedEmail = input.email.trim().toLowerCase();
-    const normalizedName = input.name?.trim() || null;
+    const normalizedName = input.name.trim();
+    const normalizedPhone = input.phone.trim();
     const existingCustomer = await getCustomerByEmail(normalizedEmail);
 
     if (existingCustomer?.password_hash) {
@@ -76,43 +94,67 @@ export async function registerCustomer(input: CustomerAuthInput): Promise<Custom
     }
 
     const passwordHash = await hashPassword(input.password);
+    const customer = await withTransaction(async (client) => {
+        const result = existingCustomer
+            ? await client.query<CustomerRow>(
+                  `
+                      UPDATE customers
+                      SET
+                          name = COALESCE($2, name),
+                          phone = $3,
+                          password_hash = $4
+                      WHERE id = $1
+                      RETURNING
+                          id,
+                          name,
+                          email,
+                          phone,
+                          password_hash,
+                          created_at
+                  `,
+                  [Number(existingCustomer.id), normalizedName, normalizedPhone, passwordHash],
+              )
+            : await client.query<CustomerRow>(
+                  `
+                      INSERT INTO customers (
+                          name,
+                          email,
+                          phone,
+                          password_hash
+                      )
+                      VALUES ($1, $2, $3, $4)
+                      RETURNING
+                          id,
+                          name,
+                          email,
+                          phone,
+                          password_hash,
+                          created_at
+                  `,
+                  [normalizedName, normalizedEmail, normalizedPhone, passwordHash],
+              );
 
-    const result = existingCustomer
-        ? await query<CustomerRow>(
-              `
-                  UPDATE customers
-                  SET
-                      name = COALESCE($2, name),
-                      password_hash = $3
-                  WHERE id = $1
-                  RETURNING
-                      id,
-                      name,
-                      email,
-                      password_hash,
-                      created_at
-              `,
-              [Number(existingCustomer.id), normalizedName, passwordHash],
-          )
-        : await query<CustomerRow>(
-              `
-                  INSERT INTO customers (
-                      name,
-                      email,
-                      password_hash
-                  )
-                  VALUES ($1, $2, $3)
-                  RETURNING
-                      id,
-                      name,
-                      email,
-                      password_hash,
-                      created_at
-              `,
-              [normalizedName, normalizedEmail, passwordHash],
-          );
+        const customerProfile = mapCustomerProfile(result.rows[0]);
 
-    const customer = mapCustomerProfile(result.rows[0]);
+        await createCustomerAddress(
+            {
+                customerId: customerProfile.id,
+                label: input.addressLabel,
+                name: normalizedName,
+                phone: normalizedPhone,
+                addressLine1: input.addressLine1,
+                addressLine2: input.addressLine2,
+                city: input.city,
+                state: input.state,
+                postalCode: input.postalCode,
+                country: input.country,
+                setAsDefault: true,
+            },
+            client,
+        );
+
+        return customerProfile;
+    });
 
     return {
         token: signCustomerToken(customer),
@@ -120,7 +162,7 @@ export async function registerCustomer(input: CustomerAuthInput): Promise<Custom
     };
 }
 
-export async function loginCustomer(input: CustomerAuthInput): Promise<CustomerAuthResponse> {
+export async function loginCustomer(input: CustomerLoginInput): Promise<CustomerAuthResponse> {
     const customer = await getCustomerByEmail(input.email.trim().toLowerCase());
 
     if (!customer?.password_hash) {
@@ -148,6 +190,7 @@ export async function getCustomerProfile(customerId: number): Promise<CustomerPr
                 id,
                 name,
                 email,
+                phone,
                 password_hash,
                 created_at
             FROM customers

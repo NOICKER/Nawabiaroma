@@ -13,6 +13,8 @@
     "types": ["node"]
   },
   "include": [
+    "db_test.ts",
+    "init_db.ts",
     "server/**/*.ts",
     "routes/**/*.ts",
     "controllers/**/*.ts",

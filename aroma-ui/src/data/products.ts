@@ -121,6 +121,14 @@ interface NormalizedProductDetailApi extends NormalizedProductSummaryApi {
     images: NormalizedProductImageApi[];
 }
 
+export interface StoreProductVariant {
+    id: number;
+    sku: string;
+    sizeLabel: string;
+    price: number;
+    stockQuantity: number;
+}
+
 export interface StoreProduct {
     id: string;
     number: string;
@@ -143,6 +151,7 @@ export interface StoreProduct {
         base: string[];
     };
     variantId: number | null;
+    variants: StoreProductVariant[];
 }
 
 interface UseStoreProductsResult {
@@ -198,6 +207,10 @@ function getProductSize(size: string | null, variants: ProductVariantApi[] = [])
 
 function getDisplayName(name: string, subName: string | null) {
     return [name, subName].filter(Boolean).join(' ').trim();
+}
+
+function getPreferredVariant(variants: StoreProductVariant[]) {
+    return variants.find((variant) => variant.stockQuantity > 0) ?? variants[0] ?? null;
 }
 
 function getProductNumber(id: number, index?: number) {
@@ -256,6 +269,16 @@ function normalizeProductDetailApi(product: ProductDetailApi): NormalizedProduct
     };
 }
 
+function mapStoreVariant(variant: NormalizedProductVariantApi): StoreProductVariant {
+    return {
+        id: variant.id,
+        sku: variant.sku,
+        sizeLabel: variant.sizeLabel,
+        price: variant.price,
+        stockQuantity: variant.stockQuantity,
+    };
+}
+
 function groupNotes(notes: NormalizedProductNoteApi[]): StoreProduct['notes'] {
     return notes.reduce<StoreProduct['notes']>(
         (groupedNotes, note) => {
@@ -296,6 +319,7 @@ function createBaseStoreProduct(product: NormalizedProductSummaryApi, index: num
             base: [],
         },
         variantId: null,
+        variants: [],
     };
 }
 
@@ -306,6 +330,8 @@ function mapProductSummary(product: ProductSummaryApi, index: number) {
 function mapProductDetail(product: ProductDetailApi, index?: number) {
     const normalizedProduct = normalizeProductDetailApi(product);
     const baseProduct = createBaseStoreProduct(normalizedProduct, Math.max(index ?? normalizedProduct.id - 1, 0));
+    const variants = normalizedProduct.variants.map(mapStoreVariant);
+    const preferredVariant = getPreferredVariant(variants);
     const sortedImages = [...normalizedProduct.images].sort((left, right) => {
         if (left.isPrimary !== right.isPrimary) {
             return left.isPrimary ? -1 : 1;
@@ -317,12 +343,15 @@ function mapProductDetail(product: ProductDetailApi, index?: number) {
 
     return {
         ...baseProduct,
-        size: getProductSize(normalizedProduct.size, normalizedProduct.variants),
+        size: preferredVariant?.sizeLabel ?? getProductSize(normalizedProduct.size, normalizedProduct.variants),
+        price: formatPrice(preferredVariant?.price ?? baseProduct.priceValue),
+        priceValue: preferredVariant?.price ?? baseProduct.priceValue,
         category: getProductCategory(normalizedProduct.size),
         description: normalizedProduct.description?.trim() || baseProduct.tagline,
         image: sortedImages[0]?.url ?? baseProduct.image ?? '',
         notes: groupNotes(sortedNotes),
-        variantId: normalizedProduct.variants[0]?.id ? Number(normalizedProduct.variants[0].id) : null,
+        variantId: preferredVariant?.id ?? null,
+        variants,
     };
 }
 

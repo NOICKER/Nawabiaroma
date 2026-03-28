@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
+import { getRequestLogContext, logger } from '../services/logger.js';
 import {
     createAdminProductImageRecord,
     createAdminPromoCodeRecord,
@@ -220,6 +221,14 @@ export const updateAdminProductVariant = asyncHandler(async (req: Request, res: 
     }
 
     const variant = await updateAdminProductVariantRecord(parseId(req.params.id), parseId(req.params.variantId), parsed.data);
+    logger.info({
+        event_type: 'admin_variant_updated',
+        outcome: 'success',
+        ...getRequestLogContext(req),
+        product_id: parseId(req.params.id),
+        variant_id: parseId(req.params.variantId),
+        stock_quantity: parsed.data.stockQuantity,
+    });
     res.status(200).json({ data: variant });
 });
 
@@ -262,6 +271,14 @@ export const updateAdminOrder = asyncHandler(async (req: Request, res: Response)
     }
 
     const order = await updateAdminOrderRecord(parseId(req.params.id), parsed.data);
+    logger.info({
+        event_type: 'admin_order_updated',
+        outcome: 'success',
+        ...getRequestLogContext(req),
+        order_id: order.id,
+        status: order.status,
+        tracking_number: order.trackingNumber,
+    });
     res.status(200).json({ data: order });
 });
 

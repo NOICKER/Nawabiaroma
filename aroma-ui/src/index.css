@@ -46,17 +46,7 @@
 }
 
 :root {
-  /* Default Light Mode */
-  --color-ink: #000000;
-  --color-canvas: #F5F5F7;
-  --glass-surface: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --glass-refraction: rgba(0, 0, 0, 0.2);
-  --text-muted: #666666;
-}
-
-.dark {
-  /* Dark Mode */
+  /* Permanent Dark Mode */
   --color-ink: #FFFFFF;
   --color-canvas: #0A0A0A;
   --glass-surface: rgba(255, 255, 255, 0.05);
@@ -82,29 +72,12 @@ body {
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* Light mode specific adjustment if needed over glass-panel */
-:root:not(.dark) .glass-panel {
-  box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.03),
-    inset 0 0 0 1px var(--glass-border);
-}
-
 .refraction-text {
   color: rgba(255, 255, 255, 0.15);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.15) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   backdrop-filter: blur(2px);
-}
-
-:root:not(.dark) .refraction-text {
-  color: #E5E7EB;
-  /* Light mode text color for INVISIBLE ARCHITECTURE */
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  backdrop-filter: none;
-  mix-blend-mode: multiply;
 }
 
 .light-glow {
@@ -116,6 +89,25 @@ body {
 ::-webkit-scrollbar {
   width: 0px;
   background: transparent;
+}
+
+/* ── Native select dark theme ────────────────────────────────────────────── */
+select {
+  background-color: #0f1a1c;
+  color: var(--color-ink);
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #0f1a1c;
+  color: var(--color-ink);
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: var(--color-primary);
+  color: #ffffff;
 }
 
 .animate-float {

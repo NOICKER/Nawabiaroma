@@ -133,13 +133,13 @@ export function OrderConfirmation() {
 
                 <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_360px]">
                     <div className="space-y-4">
-                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-white/55 p-6">
+                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-6">
                             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Order ID</p>
                             <p className="mt-2 text-lg text-[var(--color-ink)]">#{order.orderId}</p>
                         </div>
 
                         {order.items.map((item) => (
-                            <article key={`${order.orderId}-${item.variantId}`} className="rounded-[28px] border border-[var(--glass-border)] bg-white/55 p-5">
+                            <article key={`${order.orderId}-${item.variantId}`} className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-5">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
                                         <h2 className="font-display text-xl font-light text-[var(--color-ink)]">{item.productName}</h2>
@@ -155,7 +155,7 @@ export function OrderConfirmation() {
                     </div>
 
                     <aside className="space-y-4">
-                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-white/55 p-6">
+                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-6">
                             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]">Shipping</p>
                             {order.address ? (
                                 <div className="mt-3 space-y-1 text-sm text-[var(--color-ink)]">
@@ -173,7 +173,7 @@ export function OrderConfirmation() {
                             )}
                         </div>
 
-                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-white/55 p-6">
+                        <div className="rounded-[28px] border border-[var(--glass-border)] bg-transparent p-6">
                             <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
                                 <span>Subtotal</span>
                                 <span className="text-[var(--color-ink)]">{formatPrice(order.subtotal)}</span>
