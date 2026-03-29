@@ -167,6 +167,7 @@ interface PromoCodeRow {
 }
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
+const POSTGRES_FOREIGN_KEY_VIOLATION = '23503';
 
 function mapAdminOrderRow(row: AdminOrderRow) {
     return {
@@ -268,6 +269,16 @@ function isProductSlugConflict(error: unknown) {
     const databaseError = error as { code?: string; constraint?: string };
 
     return databaseError.code === POSTGRES_UNIQUE_VIOLATION && databaseError.constraint === 'products_slug_key';
+}
+
+function isForeignKeyConflict(error: unknown) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    const databaseError = error as { code?: string };
+
+    return databaseError.code === POSTGRES_FOREIGN_KEY_VIOLATION;
 }
 
 async function assertProductExists(productId: number) {
@@ -691,20 +702,28 @@ export async function setAdminProductPrimaryImageRecord(productId: number, image
 }
 
 export async function deleteAdminProductRecord(id: number) {
-    const result = await query(
-        `
-            DELETE FROM products
-            WHERE id = $1
-            RETURNING id
-        `,
-        [id],
-    );
+    try {
+        const result = await query(
+            `
+                DELETE FROM products
+                WHERE id = $1
+                RETURNING id
+            `,
+            [id],
+        );
 
-    if (result.rowCount === 0) {
-        throw new HttpError(404, 'Product not found.');
+        if (result.rowCount === 0) {
+            throw new HttpError(404, 'Product not found.');
+        }
+
+        return result.rows[0];
+    } catch (error) {
+        if (isForeignKeyConflict(error)) {
+            throw new HttpError(409, 'Cannot delete product because it has associated orders or active carts. Please mark it as inactive instead.');
+        }
+
+        throw error;
     }
-
-    return result.rows[0];
 }
 
 export async function createAdminProductVariantRecord(productId: number, payload: ProductVariantPayload) {
@@ -777,21 +796,29 @@ export async function updateAdminProductVariantRecord(productId: number, variant
 export async function deleteAdminProductVariantRecord(productId: number, variantId: number) {
     await assertProductExists(productId);
 
-    const result = await query(
-        `
-            DELETE FROM product_variants
-            WHERE product_id = $1
-              AND id = $2
-            RETURNING id
-        `,
-        [productId, variantId],
-    );
+    try {
+        const result = await query(
+            `
+                DELETE FROM product_variants
+                WHERE product_id = $1
+                  AND id = $2
+                RETURNING id
+            `,
+            [productId, variantId],
+        );
 
-    if (result.rowCount === 0) {
-        throw new HttpError(404, 'Variant not found.');
+        if (result.rowCount === 0) {
+            throw new HttpError(404, 'Variant not found.');
+        }
+
+        return result.rows[0];
+    } catch (error) {
+        if (isForeignKeyConflict(error)) {
+            throw new HttpError(409, 'Cannot delete variant because it has associated orders or active carts.');
+        }
+
+        throw error;
     }
-
-    return result.rows[0];
 }
 
 export async function createAdminFragranceNoteRecord(productId: number, payload: FragranceNotePayload) {
