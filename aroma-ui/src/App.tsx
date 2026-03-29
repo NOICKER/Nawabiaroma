@@ -1,13 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { CustomerRoute } from './components/CustomerRoute';
 import { Footer } from './components/Footer';
 import { Navbar } from './components/Navbar';
+import { SeoHead } from './components/SeoHead.tsx';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminRoute } from './components/admin/AdminRoute';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { CartProvider } from './context/CartContext';
 import { CustomerAuthProvider } from './context/CustomerAuthContext';
+import { initializeAnalytics, isStorefrontPath, trackAnalyticsPageView } from './lib/analytics.ts';
+import { readCookieConsent, saveCookieConsent, type CookieConsentStatus } from './lib/cookieConsent.ts';
 import { About } from './pages/About';
 import { AccountAddresses } from './pages/AccountAddresses';
 import { AccountDashboard } from './pages/AccountDashboard';
@@ -42,13 +46,25 @@ function ScrollToTop() {
 }
 
 function AppContent() {
-    const { pathname } = useLocation();
-    const isAdminRoute = pathname.startsWith('/admin');
+    const location = useLocation();
+    const { pathname, search, hash } = location;
+    const isStorefrontRoute = isStorefrontPath(pathname);
+    const [cookieConsent, setCookieConsent] = useState<CookieConsentStatus | null>(() => readCookieConsent());
+
+    useEffect(() => {
+        if (cookieConsent !== 'accepted' || !isStorefrontRoute) {
+            return;
+        }
+
+        initializeAnalytics();
+        trackAnalyticsPageView(`${pathname}${search}${hash}`);
+    }, [cookieConsent, hash, isStorefrontRoute, pathname, search]);
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-[var(--color-canvas)] text-[var(--color-ink)] selection:bg-[var(--color-primary)]/20 selection:text-[var(--color-primary)] font-body transition-colors duration-300">
             <ScrollToTop />
-            {isAdminRoute ? null : <Navbar />}
+            <SeoHead />
+            {isStorefrontRoute ? <Navbar /> : null}
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
@@ -81,7 +97,19 @@ function AppContent() {
                     </Route>
                 </Route>
             </Routes>
-            {isAdminRoute ? null : <Footer />}
+            {isStorefrontRoute ? <Footer /> : null}
+            {isStorefrontRoute && cookieConsent === null ? (
+                <CookieConsentBanner
+                    onAccept={() => {
+                        saveCookieConsent('accepted');
+                        setCookieConsent('accepted');
+                    }}
+                    onDecline={() => {
+                        saveCookieConsent('declined');
+                        setCookieConsent('declined');
+                    }}
+                />
+            ) : null}
             <Cart />
         </div>
     );
