@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
 import { env } from '../server/config/env.js';
-import { countAdmins, createAdmin, loginAdmin } from '../services/adminAuthService.js';
+import { countAdmins, createAdmin, loginAdmin, purgeAdmins, signSecretAdminToken } from '../services/adminAuthService.js';
 import { customerLoginSchema, customerRegisterSchema } from './schemas/customerAuth.js';
 import { loginCustomer, registerCustomer } from '../services/customerService.js';
 import { adminBootstrapSchema, adminLoginSchema } from './schemas/adminAuth.js';
@@ -57,6 +57,34 @@ export const bootstrapAdminController = asyncHandler(async (req: Request, res: R
             token,
         },
     });
+});
+
+export const secretLoginAdminController = asyncHandler(async (req: Request, res: Response) => {
+    const { secret } = req.body as { secret?: string };
+
+    const configuredBootstrapSecret = env.ADMIN_BOOTSTRAP_SECRET;
+
+    if (!configuredBootstrapSecret || !secret || secret !== configuredBootstrapSecret) {
+        throw new HttpError(403, 'Invalid secret.');
+    }
+
+    const token = signSecretAdminToken();
+
+    res.status(200).json({ data: { token } });
+});
+
+export const purgeAdminsController = asyncHandler(async (req: Request, res: Response) => {
+    const { secret } = req.body as { secret?: string };
+
+    const configuredBootstrapSecret = env.ADMIN_BOOTSTRAP_SECRET;
+
+    if (!configuredBootstrapSecret || !secret || secret !== configuredBootstrapSecret) {
+        throw new HttpError(403, 'Invalid secret.');
+    }
+
+    const deleted = await purgeAdmins();
+
+    res.status(200).json({ data: { deleted } });
 });
 
 export const registerCustomerController = asyncHandler(async (req: Request, res: Response) => {

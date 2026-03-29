@@ -118,6 +118,10 @@ export function persistAdminToken(storage: StorageLike | null, token: string | n
     return normalizedToken;
 }
 
+export async function submitAdminSecretLogin(secret: string): Promise<string> {
+    return submitAdminTokenRequest(buildApiUrl('/api/auth/admin/secret-login'), { secret }, 'Invalid setup secret.');
+}
+
 export async function submitAdminLogin(email: string, password: string): Promise<string> {
     return submitAdminTokenRequest(buildApiUrl('/api/auth/admin/login'), { email, password }, 'Unable to log in.');
 }
