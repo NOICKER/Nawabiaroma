@@ -114,7 +114,10 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS order_items (
     id BIGSERIAL PRIMARY KEY,
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    product_variant_id BIGINT NOT NULL REFERENCES product_variants(id),
+    product_variant_id BIGINT REFERENCES product_variants(id) ON DELETE SET NULL,
+    product_name TEXT NOT NULL,
+    variant_label TEXT NOT NULL,
+    sku TEXT NOT NULL,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     price_at_purchase NUMERIC(10, 2) NOT NULL
 );

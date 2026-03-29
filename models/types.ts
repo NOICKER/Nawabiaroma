@@ -150,6 +150,7 @@ export interface CreatedOrderItem {
     productId: number;
     productName: string;
     variant: string;
+    sku: string;
     quantity: number;
     price: number;
     subtotal: number;

@@ -19,6 +19,7 @@ interface CartItemRow {
     productId: number | string;
     productName: string;
     variant: string;
+    sku: string;
     quantity: number | string;
     price: number | string;
     subtotal: number | string;
@@ -60,6 +61,7 @@ interface OrderItemRow {
     productId: number | string;
     productName: string;
     variant: string;
+    sku: string;
     quantity: number | string;
     price: number | string;
     subtotal: number | string;
@@ -157,10 +159,11 @@ function mapSavedAddress(row: AddressRow): SavedAddress {
 
 function mapOrderItem(row: OrderItemRow): CreatedOrderItem {
     return {
-        variantId: Number(row.variantId),
-        productId: Number(row.productId),
+        variantId: row.variantId === null ? 0 : Number(row.variantId),
+        productId: row.productId === null ? 0 : Number(row.productId),
         productName: row.productName,
         variant: row.variant,
+        sku: row.sku,
         quantity: Number(row.quantity),
         price: Number(row.price),
         subtotal: Number(row.subtotal),
@@ -186,14 +189,14 @@ async function getOrderItemsByOrderIds(orderIds: number[]) {
                 oi.order_id AS "orderId",
                 oi.product_variant_id AS "variantId",
                 pv.product_id AS "productId",
-                p.name AS "productName",
-                pv.size_label AS variant,
+                oi.product_name AS "productName",
+                oi.variant_label AS variant,
+                oi.sku,
                 oi.quantity,
                 oi.price_at_purchase AS price,
                 oi.price_at_purchase * oi.quantity AS subtotal
             FROM order_items oi
-            INNER JOIN product_variants pv ON pv.id = oi.product_variant_id
-            INNER JOIN products p ON p.id = pv.product_id
+            LEFT JOIN product_variants pv ON pv.id = oi.product_variant_id
             WHERE oi.order_id = ANY($1::bigint[])
             ORDER BY oi.order_id DESC, oi.id ASC
         `,
@@ -331,6 +334,7 @@ async function getCartItemsForOrder(cartId: number, executor: Queryable) {
                 pv.product_id AS "productId",
                 p.name AS "productName",
                 pv.size_label AS variant,
+                pv.sku AS sku,
                 ci.quantity,
                 COALESCE(pv.price_override, p.base_price) AS price,
                 COALESCE(pv.price_override, p.base_price) * ci.quantity AS subtotal,
@@ -353,6 +357,7 @@ async function getCartItemsForOrder(cartId: number, executor: Queryable) {
         productId: Number(row.productId),
         productName: row.productName,
         variant: row.variant,
+        sku: row.sku,
         quantity: Number(row.quantity),
         price: Number(row.price),
         subtotal: Number(row.subtotal),
@@ -436,12 +441,15 @@ async function insertOrderItems(orderId: number, items: CreatedOrderItem[], exec
                 INSERT INTO order_items (
                     order_id,
                     product_variant_id,
+                    product_name,
+                    variant_label,
+                    sku,
                     quantity,
                     price_at_purchase
                 )
-                VALUES ($1, $2, $3, $4)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
             `,
-            [orderId, item.variantId, item.quantity, item.price],
+            [orderId, item.variantId, item.productName, item.variant, item.sku, item.quantity, item.price],
         );
     }
 }
