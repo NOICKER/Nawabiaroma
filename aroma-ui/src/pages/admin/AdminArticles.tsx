@@ -1,8 +1,9 @@
 import { Pencil, Plus, Power, Trash2, X } from 'lucide-react';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { buildApiUrl } from '../../lib/api';
 
-const ARTICLES_ENDPOINT = '/api/admin/articles';
+const ARTICLES_ENDPOINT = buildApiUrl('/api/admin/articles');
 const fieldClassName =
     'w-full rounded-2xl border border-[var(--glass-border)] bg-white/5 px-4 py-3 text-sm text-[var(--color-ink)] outline-none transition-colors placeholder:text-[var(--text-muted)]/70 focus:border-[var(--color-primary)] focus:bg-white/7';
 const labelClassName = 'font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--text-muted)]';

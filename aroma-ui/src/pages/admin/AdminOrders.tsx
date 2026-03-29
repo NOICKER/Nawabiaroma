@@ -1,8 +1,9 @@
 import { ArrowLeft, PackageCheck, Save } from 'lucide-react';
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { buildApiUrl } from '../../lib/api';
 
-const ADMIN_ORDERS_ENDPOINT = '/api/admin/orders';
+const ADMIN_ORDERS_ENDPOINT = buildApiUrl('/api/admin/orders');
 const orderStatuses = [
     'awaiting_payment',
     'paid',

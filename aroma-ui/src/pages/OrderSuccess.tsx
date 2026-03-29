@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreProducts } from '../data/products';
+import { buildApiUrl } from '../lib/api';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
-const ORDERS_ENDPOINT = '/api/orders';
+const ORDERS_ENDPOINT = buildApiUrl('/api/orders');
 const FALLBACK_PRODUCT_IMAGE =
     'https://images.unsplash.com/photo-1594913785121-667503fa0e98?auto=format&fit=crop&q=80&w=1200';
 

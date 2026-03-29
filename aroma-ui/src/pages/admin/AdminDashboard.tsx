@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { buildApiUrl } from '../../lib/api';
 
-const ADMIN_PRODUCTS_ENDPOINT = '/api/admin/products';
-const ADMIN_ORDERS_ENDPOINT = '/api/admin/orders';
-const ADMIN_ARTICLES_ENDPOINT = '/api/admin/articles';
+const ADMIN_PRODUCTS_ENDPOINT = buildApiUrl('/api/admin/products');
+const ADMIN_ORDERS_ENDPOINT = buildApiUrl('/api/admin/orders');
+const ADMIN_ARTICLES_ENDPOINT = buildApiUrl('/api/admin/articles');
 const revenueStatuses = new Set(['paid', 'processing', 'shipped', 'delivered']);
 
 type OrderStatus =

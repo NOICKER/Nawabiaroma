@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useStoreProducts } from '../data/products';
+import { buildApiUrl } from '../lib/api';
 
 const FALLBACK_PRODUCT_IMAGE =
     'https://images.unsplash.com/photo-1594913785121-667503fa0e98?auto=format&fit=crop&q=80&w=1200';
@@ -147,7 +148,7 @@ export default function OrderDetail() {
 
         void (async () => {
             try {
-                const response = await fetch(`/api/orders/${encodeURIComponent(id)}`, {
+                const response = await fetch(buildApiUrl(`/api/orders/${encodeURIComponent(id)}`), {
                     method: 'GET',
                     signal: abortController.signal,
                 });

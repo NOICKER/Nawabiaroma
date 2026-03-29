@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { buildApiUrl } from '../../lib/api';
 
-const JOURNAL_ENDPOINT = '/api/journal';
+const JOURNAL_ENDPOINT = buildApiUrl('/api/journal');
 
 interface JournalEntry {
     id: number;

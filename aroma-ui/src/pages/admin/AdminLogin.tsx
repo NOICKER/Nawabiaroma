@@ -3,8 +3,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { useCart } from '../../context/CartContext';
+import { buildApiUrl } from '../../lib/api';
 
-const LOGIN_ENDPOINT = '/api/auth/login';
+const LOGIN_ENDPOINT = buildApiUrl('/api/auth/login');
 
 interface LoginResponse {
     data?: {

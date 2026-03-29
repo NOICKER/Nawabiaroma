@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
+import { buildApiUrl } from '../lib/api';
 
 const CART_SESSION_STORAGE_KEY = 'cart_session_id';
-const ORDERS_ENDPOINT = '/api/orders';
+const ORDERS_ENDPOINT = buildApiUrl('/api/orders');
 
 interface OrderListItemInput {
     id?: string;
