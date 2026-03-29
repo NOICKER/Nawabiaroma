@@ -68,6 +68,21 @@ function signAdminToken(admin: AdminProfile) {
     });
 }
 
+export function signSecretAdminToken(): string {
+    const payload: AuthTokenPayload = {
+        sub: 'secret-admin',
+        email: 'admin@nawabiaroma.com',
+        role: 'admin',
+    };
+
+    return jwt.sign(payload, env.JWT_SECRET, {
+        algorithm: 'HS256',
+        issuer: env.JWT_ISSUER,
+        audience: env.JWT_AUDIENCE,
+        expiresIn: '12h',
+    });
+}
+
 function isAdminEmailConflict(error: unknown) {
     if (!error || typeof error !== 'object') {
         return false;
@@ -195,4 +210,9 @@ export async function listAdmins(): Promise<AdminProfile[]> {
     );
 
     return result.rows.map(mapAdminProfile);
+}
+
+export async function purgeAdmins(): Promise<number> {
+    const result = await query<{ count: string }>('DELETE FROM admins RETURNING id');
+    return result.rowCount ?? 0;
 }
