@@ -22,6 +22,7 @@ export function createApp() {
     const app = express();
     const configuredCorsOrigins = parseCorsOrigins(env.CORS_ORIGIN);
 
+    app.set('trust proxy', 1);
     app.disable('x-powered-by');
 
     app.use(helmet());
