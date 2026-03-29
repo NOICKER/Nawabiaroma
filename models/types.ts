@@ -187,6 +187,15 @@ export interface CustomerProfile {
     createdAt: string;
 }
 
+export interface AdminProfile {
+    id: number;
+    email: string;
+    initials: string | null;
+    isActive: boolean;
+    createdAt: string;
+    lastLoginAt: string | null;
+}
+
 export interface CustomerAuthResponse {
     token: string;
     customer: CustomerProfile;

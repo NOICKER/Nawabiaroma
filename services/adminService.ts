@@ -2,6 +2,7 @@ import { HttpError } from '../middleware/errorHandler.js';
 import type { FragranceNoteType, OrderStatus, PaymentMethod, PaymentStatus } from '../models/types.js';
 import { deleteProductImageFromStorage } from '../services/storageService.js';
 import { query, type Queryable, withTransaction } from '../server/config/database.js';
+import { createAdmin, listAdmins } from './adminAuthService.js';
 
 interface ProductPayload {
     slug: string;
@@ -1299,4 +1300,12 @@ export async function updateAdminPageRecord(id: number, payload: PagePayload) {
     }
 
     return result.rows[0];
+}
+
+export async function listAdminUserRecords() {
+    return listAdmins();
+}
+
+export async function createAdminUserRecord(payload: { email: string; initials?: string | null; password: string }) {
+    return createAdmin(payload);
 }

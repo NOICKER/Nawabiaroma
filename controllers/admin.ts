@@ -5,6 +5,7 @@ import { HttpError } from '../middleware/errorHandler.js';
 import { allowedUploadContentTypes, orderStatuses, type UploadUrlRequest } from '../models/types.js';
 import { getRequestLogContext, logger } from '../services/logger.js';
 import {
+    createAdminUserRecord,
     createAdminProductImageRecord,
     createAdminPromoCodeRecord,
     createAdminArticleRecord,
@@ -22,6 +23,7 @@ import {
     getAdminOrderRecord,
     getAdminProductDetailRecord,
     listAdminArticles,
+    listAdminUserRecords,
     listAdminPromoCodes,
     listAdminOrders,
     listAdminPages,
@@ -90,6 +92,12 @@ const pagePayloadSchema = z.object({
     contentHtml: z.string().nullable().optional(),
 });
 
+const adminUserPayloadSchema = z.object({
+    email: z.string().trim().email(),
+    initials: z.string().trim().min(1).max(8),
+    password: z.string().min(8),
+});
+
 const fragranceNotePayloadSchema = z.object({
     type: z.enum(['top', 'heart', 'base']),
     note: z.string().min(1),
@@ -147,6 +155,22 @@ export const createUploadUrl = asyncHandler(async (req: Request, res: Response) 
 export const getAdminProducts = asyncHandler(async (_req: Request, res: Response) => {
     const products = await listAdminProducts();
     res.status(200).json({ data: products });
+});
+
+export const listAdminUsersController = asyncHandler(async (_req: Request, res: Response) => {
+    const admins = await listAdminUserRecords();
+    res.status(200).json({ data: admins });
+});
+
+export const createAdminUserController = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = adminUserPayloadSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid admin user payload.', parsed.error.flatten());
+    }
+
+    const admin = await createAdminUserRecord(parsed.data);
+    res.status(201).json({ data: admin });
 });
 
 export const getAdminProduct = asyncHandler(async (req: Request, res: Response) => {

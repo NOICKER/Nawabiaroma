@@ -1,7 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, type ReactNode } from 'react';
-
-const ADMIN_TOKEN_STORAGE_KEY = 'nawabi_admin_token';
+import {
+    persistAdminToken as writeStoredAdminToken,
+    readStoredAdminToken,
+    resolveAdminAuthStorage,
+} from '../lib/adminAuth.ts';
 
 interface AdminAuthContextValue {
     token: string | null;
@@ -14,55 +17,27 @@ const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefi
 
 let cachedAdminToken: string | null | undefined;
 
-function normalizeToken(token: string | null) {
-    return typeof token === 'string' && token.length > 0 ? token : null;
-}
-
 function readStoredToken() {
     if (cachedAdminToken !== undefined) {
         return cachedAdminToken;
     }
 
-    if (typeof window === 'undefined') {
-        cachedAdminToken = null;
-        return cachedAdminToken;
-    }
-
-    try {
-        cachedAdminToken = normalizeToken(window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY));
-        return cachedAdminToken;
-    } catch {
-        cachedAdminToken = null;
-        return cachedAdminToken;
-    }
+    const storage = typeof window === 'undefined' ? null : resolveAdminAuthStorage(window);
+    cachedAdminToken = readStoredAdminToken(storage);
+    return cachedAdminToken;
 }
 
 function persistToken(token: string | null) {
-    cachedAdminToken = token;
-
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        if (token) {
-            window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
-            return;
-        }
-
-        window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
-    } catch {
-        return;
-    }
+    const storage = typeof window === 'undefined' ? null : resolveAdminAuthStorage(window);
+    cachedAdminToken = writeStoredAdminToken(storage, token);
 }
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(() => readStoredToken());
 
     const login = (nextToken: string) => {
-        const storedToken = normalizeToken(nextToken);
-        persistToken(storedToken);
-        setToken(storedToken);
+        persistToken(nextToken);
+        setToken(cachedAdminToken ?? null);
     };
 
     const logout = () => {
