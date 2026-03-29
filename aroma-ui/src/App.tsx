@@ -34,6 +34,7 @@ import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminPages } from './pages/admin/AdminPages';
 import { AdminPromoCodes } from './pages/admin/AdminPromoCodes';
 import { AdminProducts } from './pages/admin/AdminProducts';
+import { AdminUsers } from './pages/admin/AdminUsers';
 
 function ScrollToTop() {
     const { pathname } = useLocation();
@@ -86,12 +87,13 @@ function AppContent() {
                 <Route path="/my-orders" element={<Navigate replace to="/orders" />} />
                 <Route path="/order-success" element={<Navigate replace to="/order-confirmation" />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
-                <Route element={<AdminRoute />}>
-                    <Route element={<AdminLayout />}>
-                        <Route path="/admin" element={<AdminDashboard />} />
-                        <Route path="/admin/products" element={<AdminProducts />} />
-                        <Route path="/admin/orders" element={<AdminOrders />} />
-                        <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
+                    <Route element={<AdminRoute />}>
+                        <Route element={<AdminLayout />}>
+                            <Route path="/admin" element={<AdminDashboard />} />
+                            <Route path="/admin/users" element={<AdminUsers />} />
+                            <Route path="/admin/products" element={<AdminProducts />} />
+                            <Route path="/admin/orders" element={<AdminOrders />} />
+                            <Route path="/admin/promo-codes" element={<AdminPromoCodes />} />
                         <Route path="/admin/articles" element={<AdminArticles />} />
                         <Route path="/admin/pages" element={<AdminPages />} />
                     </Route>

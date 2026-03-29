@@ -12,6 +12,7 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
     { label: 'Dashboard', to: '/admin', end: true },
+    { label: 'Admins', to: '/admin/users' },
     { label: 'Products', to: '/admin/products' },
     { label: 'Orders', to: '/admin/orders' },
     { label: 'Promo Codes', to: '/admin/promo-codes' },
@@ -124,7 +125,7 @@ export function AdminLayout() {
                                 <div>
                                     <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">Admin Panel</p>
                                     <p className="mt-1 font-display text-base font-light tracking-[0.08em] text-[var(--color-ink)]">
-                                        Manage products, content, and orders
+                                        Manage admins, products, content, and orders
                                     </p>
                                 </div>
                             </div>

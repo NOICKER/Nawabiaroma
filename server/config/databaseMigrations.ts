@@ -10,6 +10,7 @@ const REQUIRED_MIGRATIONS = [
     '06_customer_auth_and_razorpay.sql',
     '07_remove_stripe_columns.sql',
     '08_customer_address_book.sql',
+    '09_admin_bootstrap.sql',
 ];
 const ADVISORY_LOCK_KEY_PARTS = [9421, 6107] as const;
 

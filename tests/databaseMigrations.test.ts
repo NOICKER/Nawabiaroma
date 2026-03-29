@@ -24,6 +24,9 @@ test('ensureDatabaseSchemaCurrent applies runtime-required customer address colu
 
     assert.equal(await hasColumn('customers', 'phone'), true);
     assert.equal(await hasColumn('addresses', 'label'), true);
+    assert.equal(await hasColumn('admins', 'email'), true);
+    assert.equal(await hasColumn('admins', 'password_hash'), true);
+    assert.equal(await hasColumn('admins', 'last_login_at'), true);
 });
 
 test.after(async () => {

@@ -183,6 +183,7 @@ If an article cover image is replaced:
 Production CORS will allow only:
 
 - `https://www.nawabiaroma.com`
+- `https://nawabiaroma.com`
 
 Other security requirements:
 

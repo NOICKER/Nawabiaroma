@@ -1,45 +1,55 @@
 import type { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { HttpError } from '../middleware/errorHandler.js';
-import type { AuthTokenPayload } from '../models/types.js';
 import { env } from '../server/config/env.js';
+import { countAdmins, createAdmin, loginAdmin } from '../services/adminAuthService.js';
 import { customerLoginSchema, customerRegisterSchema } from './schemas/customerAuth.js';
 import { loginCustomer, registerCustomer } from '../services/customerService.js';
-import { verifyPassword } from '../services/passwordService.js';
+import { adminBootstrapSchema, adminLoginSchema } from './schemas/adminAuth.js';
 
-const adminLoginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
-});
-
-export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
+export const loginAdminController = asyncHandler(async (req: Request, res: Response) => {
     const parsed = adminLoginSchema.safeParse(req.body);
 
     if (!parsed.success) {
         throw new HttpError(400, 'Invalid login payload.', parsed.error.flatten());
     }
 
-    const { email, password } = parsed.data;
-    const isValidEmail = email === env.ADMIN_EMAIL;
-    const isValidPassword = await verifyPassword(password, env.ADMIN_PASSWORD_HASH);
+    const token = await loginAdmin(parsed.data);
 
-    if (!isValidEmail || !isValidPassword) {
-        throw new HttpError(401, 'Invalid credentials.');
+    res.status(200).json({
+        data: {
+            token,
+        },
+    });
+});
+
+export const bootstrapAdminController = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = adminBootstrapSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        throw new HttpError(400, 'Invalid bootstrap payload.', parsed.error.flatten());
     }
 
-    const payload: AuthTokenPayload = {
-        sub: env.ADMIN_EMAIL,
-        email: env.ADMIN_EMAIL,
-        role: 'admin',
-    };
+    const configuredBootstrapSecret = env.ADMIN_BOOTSTRAP_SECRET;
 
-    const token = jwt.sign(payload, env.JWT_SECRET, {
-        algorithm: 'HS256',
-        issuer: env.JWT_ISSUER,
-        audience: env.JWT_AUDIENCE,
-        expiresIn: '12h',
+    if (!configuredBootstrapSecret || parsed.data.bootstrapSecret !== configuredBootstrapSecret) {
+        throw new HttpError(403, 'Invalid admin setup request.');
+    }
+
+    if ((await countAdmins()) !== 0) {
+        throw new HttpError(409, 'Admin setup is unavailable.');
+    }
+
+    await createAdmin({
+        email: parsed.data.email,
+        initials: parsed.data.initials,
+        password: parsed.data.password,
+        requireEmpty: true,
+    });
+
+    const token = await loginAdmin({
+        email: parsed.data.email,
+        password: parsed.data.password,
     });
 
     res.status(200).json({

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+    createAdminUserController,
     createAdminProductImage,
     createAdminPromoCode,
     createAdminArticle,
@@ -15,6 +16,7 @@ import {
     deleteAdminPage,
     deleteAdminProduct,
     deleteAdminProductVariant,
+    listAdminUsersController,
     getAdminProduct,
     getAdminOrder,
     getAdminPromoCodes,
@@ -35,6 +37,8 @@ import { requireAdminAuth } from '../middleware/auth.js';
 export const adminRouter = Router();
 
 adminRouter.use(requireAdminAuth);
+adminRouter.get('/users', listAdminUsersController);
+adminRouter.post('/users', createAdminUserController);
 adminRouter.get('/products', getAdminProducts);
 adminRouter.get('/products/:id', getAdminProduct);
 adminRouter.post('/products', createAdminProduct);

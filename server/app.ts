@@ -15,13 +15,12 @@ import { errorHandler } from '../middleware/errorHandler.js';
 import { notFoundHandler } from '../middleware/notFound.js';
 import { apiRateLimit, checkoutRateLimit, adminRateLimit } from '../middleware/rateLimit.js';
 import { pool } from './config/database.js';
+import { createCorsOriginConfig, parseCorsOrigins } from './config/cors.js';
 import { env } from './config/env.js';
 
 export function createApp() {
     const app = express();
-    const configuredCorsOrigins = env.CORS_ORIGIN
-        ? env.CORS_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean)
-        : [];
+    const configuredCorsOrigins = parseCorsOrigins(env.CORS_ORIGIN);
 
     app.disable('x-powered-by');
 
@@ -33,7 +32,7 @@ export function createApp() {
 
     app.use(
         cors({
-            origin: configuredCorsOrigins.length > 0 ? configuredCorsOrigins : true,
+            origin: createCorsOriginConfig(configuredCorsOrigins),
             credentials: true,
         }),
     );

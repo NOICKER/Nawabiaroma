@@ -23,3 +23,12 @@
 
 \echo Applying migration 07_production_safety.sql
 \ir ../migrations/07_production_safety.sql
+
+\echo Applying migration 07_remove_stripe_columns.sql
+\ir ../migrations/07_remove_stripe_columns.sql
+
+\echo Applying migration 08_customer_address_book.sql
+\ir ../migrations/08_customer_address_book.sql
+
+\echo Applying migration 09_admin_bootstrap.sql
+\ir ../migrations/09_admin_bootstrap.sql
