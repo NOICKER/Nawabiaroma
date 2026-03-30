@@ -6,7 +6,7 @@ interface CookieConsentBannerProps {
 export function CookieConsentBanner({ onAccept, onDecline }: CookieConsentBannerProps) {
     return (
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[120] px-4 sm:px-6 lg:px-8">
-            <section className="glass-panel pointer-events-auto mx-auto max-w-5xl rounded-[30px] bg-[var(--color-canvas)]/88 p-5 sm:p-6">
+            <section className="glass-panel pointer-events-auto mx-auto max-w-5xl rounded-[30px] p-5 sm:p-6">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-3xl">
                         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--color-primary)]">

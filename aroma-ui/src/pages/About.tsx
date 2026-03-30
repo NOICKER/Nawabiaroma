@@ -79,7 +79,7 @@ export function About() {
                         </svg>
                     </div>
                     <div className="text-center">
-                        <p className="font-display text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-ink)]">Dr. A. K. Nawabi</p>
+                        <p className="font-display text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-ink)]">Mr. Sachin Mishra</p>
                         <p className="mt-2 font-mono text-[10px] tracking-widest text-[var(--text-muted)]">HEAD PERFUMER & FOUNDER</p>
                     </div>
                 </div>
