@@ -71,18 +71,7 @@ export function About() {
                     </p>
                 </div>
 
-                <div className="mt-8 flex flex-col items-center gap-8 pb-6 opacity-0 animate-[fadeInUp_0.8s_ease-out_0.8s_forwards] sm:mt-12 sm:pb-12" style={{ animationFillMode: 'forwards' }}>
-                    <div className="h-12 w-px bg-[var(--color-ink)]/10"></div>
-                    <div className="w-48 text-[var(--color-ink)] opacity-90 dark:brightness-150 dark:invert dark:filter">
-                        <svg className="stroke-[1.5px]" fill="none" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" stroke="currentColor">
-                            <path d="M10 50 C 20 40, 40 20, 50 30 C 60 40, 50 60, 40 60 C 30 60, 40 40, 60 35 C 80 30, 90 60, 80 65 C 70 70, 100 40, 110 40 C 120 40, 115 55, 125 50 C 135 45, 150 30, 160 35 C 170 40, 160 55, 180 50" strokeLinecap="round" strokeLinejoin="round"></path>
-                        </svg>
-                    </div>
-                    <div className="text-center">
-                        <p className="font-display text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-ink)]">Mr. Sachin Mishra</p>
-                        <p className="mt-2 font-mono text-[10px] tracking-widest text-[var(--text-muted)]">HEAD PERFUMER & FOUNDER</p>
-                    </div>
-                </div>
+
             </article>
 
             <style>{`
