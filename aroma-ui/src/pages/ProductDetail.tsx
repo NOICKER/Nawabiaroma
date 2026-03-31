@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useCart } from '../context/CartContext';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { type StoreProduct, type StoreProductVariant, useStoreProduct } from '../data/products';
 import { buildCartLineId } from '../utils/cart';
+import { buildCanonicalUrl } from '../seo';
 
 const MAX_PRODUCT_QUANTITY = 10;
 
@@ -74,7 +76,22 @@ function ProductDetailResource({ slug }: { slug: string }) {
         return <ProductNotFound />;
     }
 
-    return <ProductDetailContent productData={product} />;
+    const canonicalUrl = buildCanonicalUrl(`/product/${slug}`);
+
+    return (
+        <>
+            <Helmet>
+                <title>{`${product.displayName} | Nawabi Aroma`}</title>
+                <meta name="description" content={product.description} />
+                <meta property="og:title" content={`${product.displayName} | Nawabi Aroma`} />
+                <meta property="og:description" content={product.description} />
+                <meta property="og:image" content={product.image} />
+                <meta property="og:url" content={canonicalUrl} />
+                <link rel="canonical" href={canonicalUrl} />
+            </Helmet>
+            <ProductDetailContent productData={product} />
+        </>
+    );
 }
 
 function ProductNotFound() {

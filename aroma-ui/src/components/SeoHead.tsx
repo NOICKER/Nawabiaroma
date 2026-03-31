@@ -1,57 +1,31 @@
-import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { buildCanonicalUrl, getSeoMetadata } from '../seo.ts';
-
-function upsertMeta(attribute: 'name' | 'property', key: string, content: string) {
-    let meta = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
-
-    if (!meta) {
-        meta = document.createElement('meta');
-        meta.setAttribute(attribute, key);
-        document.head.append(meta);
-    }
-
-    meta.content = content;
-}
-
-function upsertLink(rel: string, href: string) {
-    let link = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
-
-    if (!link) {
-        link = document.createElement('link');
-        link.rel = rel;
-        document.head.append(link);
-    }
-
-    link.href = href;
-}
 
 export function SeoHead() {
     const location = useLocation();
+    const metadata = getSeoMetadata(location.pathname);
+    const canonicalUrl = buildCanonicalUrl(metadata.canonicalPath);
 
-    useEffect(() => {
-        const metadata = getSeoMetadata(location.pathname);
-        const canonicalUrl = buildCanonicalUrl(metadata.canonicalPath);
-
-        document.title = metadata.title;
-
-        upsertMeta('name', 'description', metadata.description);
-        upsertMeta('name', 'robots', metadata.robots);
-        upsertMeta('property', 'og:type', metadata.ogType);
-        upsertMeta('property', 'og:site_name', 'Nawabi Aroma');
-        upsertMeta('property', 'og:locale', 'en_IN');
-        upsertMeta('property', 'og:title', metadata.title);
-        upsertMeta('property', 'og:description', metadata.description);
-        upsertMeta('property', 'og:url', canonicalUrl);
-        upsertMeta('property', 'og:image', metadata.image);
-        upsertMeta('property', 'og:image:alt', metadata.imageAlt);
-        upsertMeta('name', 'twitter:card', 'summary_large_image');
-        upsertMeta('name', 'twitter:title', metadata.title);
-        upsertMeta('name', 'twitter:description', metadata.description);
-        upsertMeta('name', 'twitter:image', metadata.image);
-        upsertMeta('name', 'twitter:image:alt', metadata.imageAlt);
-        upsertLink('canonical', canonicalUrl);
-    }, [location.pathname]);
-
-    return null;
+    return (
+        <Helmet>
+            <title>{metadata.title}</title>
+            <meta name="description" content={metadata.description} />
+            <meta name="robots" content={metadata.robots} />
+            <meta property="og:type" content={metadata.ogType} />
+            <meta property="og:site_name" content="Nawabi Aroma" />
+            <meta property="og:locale" content="en_IN" />
+            <meta property="og:title" content={metadata.title} />
+            <meta property="og:description" content={metadata.description} />
+            <meta property="og:url" content={canonicalUrl} />
+            <meta property="og:image" content={metadata.image} />
+            <meta property="og:image:alt" content={metadata.imageAlt} />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={metadata.title} />
+            <meta name="twitter:description" content={metadata.description} />
+            <meta name="twitter:image" content={metadata.image} />
+            <meta name="twitter:image:alt" content={metadata.imageAlt} />
+            <link rel="canonical" href={canonicalUrl} />
+        </Helmet>
+    );
 }
