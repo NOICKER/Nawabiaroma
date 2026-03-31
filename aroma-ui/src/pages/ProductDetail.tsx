@@ -310,19 +310,6 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
         <main className="relative flex min-h-screen flex-col lg:flex-row">
             <section className="relative overflow-hidden bg-[var(--color-canvas)] dark:bg-[#0d0d0d] lg:h-screen lg:w-1/2 lg:sticky lg:top-0">
                 <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/40 via-transparent to-black/60"></div>
-                <div className="absolute right-6 top-6 z-30 sm:right-10 sm:top-10 lg:right-12 lg:top-12">
-                    <button
-                        onClick={handleWishlistToggle}
-                        className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-canvas)]/50 text-[var(--color-ink)] backdrop-blur-md transition-all hover:scale-110 hover:bg-[var(--color-canvas)]"
-                        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    >
-                        <Heart
-                            className={`h-6 w-6 transition-colors ${
-                                isWishlisted ? 'fill-[var(--color-ink)] stroke-[var(--color-ink)]' : 'stroke-[var(--color-ink)]'
-                            }`}
-                        />
-                    </button>
-                </div>
                 <div className="relative flex h-[58vh] min-h-[380px] w-full items-center justify-center p-8 sm:h-[70vh] sm:p-12 lg:h-full lg:p-24">
                     <div className="absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-ink)]/5 blur-[120px] dark:bg-white/[0.02]"></div>
                     <img
@@ -360,7 +347,20 @@ function ProductDetailContent({ productData }: { productData: StoreProduct }) {
                             ) : null}
                         </h1>
                         <div className="mt-10 flex flex-col gap-3 border-t border-[var(--glass-border)] pt-6 sm:mt-12 sm:flex-row sm:items-baseline sm:justify-between sm:pt-8">
-                            <span className="font-mono text-[11px] tracking-widest text-[var(--text-muted)]">{activeSizeLabel}</span>
+                            <div className="flex items-center gap-4">
+                                <span className="font-mono text-[11px] tracking-widest text-[var(--text-muted)]">{activeSizeLabel}</span>
+                                <button
+                                    onClick={handleWishlistToggle}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-ink)]/5 text-[var(--color-ink)] transition-all hover:scale-110 hover:bg-[var(--color-ink)]/10"
+                                    aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                                >
+                                    <Heart
+                                        className={`h-4.5 w-4.5 transition-colors ${
+                                            isWishlisted ? 'fill-[var(--color-ink)] stroke-[var(--color-ink)]' : 'stroke-[var(--color-ink)]'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
                             <span className="font-mono text-xl font-light text-[var(--color-ink)]">{formatPrice(activePriceValue)}</span>
                         </div>
                     </div>
