@@ -10,10 +10,12 @@ const addWishlistItemSchema = z.object({
 });
 
 export const getWishlistController = asyncHandler(async (req: Request, res: Response) => {
-    const customerId = req.customer?.id;
-    if (!customerId) {
+    const customerSub = req.customer?.sub;
+    if (!customerSub) {
         throw new HttpError(401, 'Unauthorized');
     }
+    const customerId = parseInt(customerSub, 10);
+    if (isNaN(customerId)) throw new HttpError(401, 'Unauthorized');
 
     const items = await getWishlist(customerId);
 
@@ -23,10 +25,12 @@ export const getWishlistController = asyncHandler(async (req: Request, res: Resp
 });
 
 export const addWishlistItemController = asyncHandler(async (req: Request, res: Response) => {
-    const customerId = req.customer?.id;
-    if (!customerId) {
+    const customerSub = req.customer?.sub;
+    if (!customerSub) {
         throw new HttpError(401, 'Unauthorized');
     }
+    const customerId = parseInt(customerSub, 10);
+    if (isNaN(customerId)) throw new HttpError(401, 'Unauthorized');
 
     const parsed = addWishlistItemSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -46,12 +50,14 @@ export const addWishlistItemController = asyncHandler(async (req: Request, res: 
 });
 
 export const removeWishlistItemController = asyncHandler(async (req: Request, res: Response) => {
-    const customerId = req.customer?.id;
-    if (!customerId) {
+    const customerSub = req.customer?.sub;
+    if (!customerSub) {
         throw new HttpError(401, 'Unauthorized');
     }
+    const customerId = parseInt(customerSub, 10);
+    if (isNaN(customerId)) throw new HttpError(401, 'Unauthorized');
 
-    const variantIdParam = req.params.variantId;
+    const variantIdParam = req.params['variantId'] as string;
     if (!variantIdParam) {
         throw new HttpError(400, 'variantId parameter is required');
     }
