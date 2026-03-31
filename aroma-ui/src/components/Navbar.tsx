@@ -135,7 +135,7 @@ export function Navbar() {
                         {isMenuOpen ? (
                         <div className="absolute inset-x-0 top-full mt-3 rounded-[28px] border border-[var(--glass-border)] bg-[#1f1f1f] px-4 py-4 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
                             <div className="flex flex-col gap-2">
-                                {(isLoggedIn ? mobileNavItems.filter((i) => i.key === 'account') : mobileNavItems).map((item) => {
+                                {(isLoggedIn ? mobileNavItems : mobileNavItems.filter((i) => i.key !== 'account')).map((item) => {
                                     const isActive = activeSection === item.key;
 
                                     return (
@@ -329,6 +329,7 @@ export function Navbar() {
                                 </Link>
                             );
                         })}
+                        
                         <button
                             aria-expanded={isCartOpen}
                             aria-label="Cart"

@@ -9,6 +9,10 @@ interface CustomerAuthContextValue {
     token: string | null;
     customer: CustomerProfile | null;
     isLoggedIn: boolean;
+    showAuthModal: boolean;
+    openAuthModal: (postLoginCallback?: () => void) => void;
+    closeAuthModal: () => void;
+    executePostLoginCallback: () => void;
     login: (input: { token: string; customer: CustomerProfile }) => void;
     logout: () => void;
 }
@@ -86,6 +90,29 @@ function persistAuthState(token: string | null, customer: CustomerProfile | null
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(() => readStoredToken());
     const [customer, setCustomer] = useState<CustomerProfile | null>(() => readStoredProfile());
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [postLoginCallback, setPostLoginCallback] = useState<(() => void) | null>(null);
+
+    const openAuthModal = (callback?: () => void) => {
+        if (callback) {
+            setPostLoginCallback(() => callback);
+        } else {
+            setPostLoginCallback(null);
+        }
+        setShowAuthModal(true);
+    };
+
+    const closeAuthModal = () => {
+        setShowAuthModal(false);
+        setPostLoginCallback(null);
+    };
+
+    const executePostLoginCallback = () => {
+        if (postLoginCallback) {
+            postLoginCallback();
+            setPostLoginCallback(null);
+        }
+    };
 
     const login = (input: { token: string; customer: CustomerProfile }) => {
         const nextToken = normalizeToken(input.token);
@@ -107,6 +134,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
                 token,
                 customer,
                 isLoggedIn: token !== null,
+                showAuthModal,
+                openAuthModal,
+                closeAuthModal,
+                executePostLoginCallback,
                 login,
                 logout,
             }}

@@ -1,4 +1,7 @@
 import { Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
+import { useWishlist } from '../context/WishlistContext';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 
 export interface Product {
     id: string;
@@ -8,6 +11,7 @@ export interface Product {
     image: string;
     glowColor: string;
     delay?: string;
+    variants?: Array<{ id: number; sizeLabel: string }>;
 }
 
 interface ProductCardProps {
@@ -15,12 +19,42 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+    const { isInWishlist, toggleWishlist } = useWishlist();
+    const { isLoggedIn, openAuthModal } = useCustomerAuth();
+
+    // Default to the first variant if available, or 0 if not
+    const primaryVariantId = product.variants?.[0]?.id ?? 0;
+    const isWishlisted = isInWishlist(primaryVariantId);
+
+    const handleWishlistClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!isLoggedIn) {
+            openAuthModal(() => toggleWishlist(Number(product.id), primaryVariantId, product.name));
+            return;
+        }
+
+        toggleWishlist(Number(product.id), primaryVariantId, product.name);
+    };
+
     return (
         <Link
             className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] border border-[var(--glass-border)] glass-panel bg-white/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] transition-all duration-500 cursor-pointer dark:bg-black/40 md:hover:-translate-y-2 md:hover:border-[var(--color-ink)]/20"
             style={{ animation: `fadeInUp 0.8s ease-out ${product.delay ?? '0s'} forwards`, opacity: 0 }}
             to={`/product/${product.id}`}
         >
+            <button
+                onClick={handleWishlistClick}
+                className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-canvas)]/50 text-[var(--color-ink)] backdrop-blur-md transition-all hover:scale-110 hover:bg-[var(--color-canvas)]"
+                aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            >
+                <Heart
+                    className={`h-5 w-5 transition-colors ${
+                        isWishlisted ? 'fill-[var(--color-ink)] stroke-[var(--color-ink)]' : 'stroke-[var(--color-ink)]'
+                    }`}
+                />
+            </button>
             <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-10 md:p-12">
                 <div className="relative w-full h-full flex items-center justify-center">
                     <div

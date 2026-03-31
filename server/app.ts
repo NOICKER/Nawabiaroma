@@ -11,6 +11,7 @@ import { authRouter } from '../routes/auth.js';
 import { ordersRouter } from '../routes/orders.js';
 import { productsRouter } from '../routes/products.js';
 import { webhooksRouter } from '../routes/webhooks.js';
+import { wishlistRouter } from '../routes/wishlist.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import { notFoundHandler } from '../middleware/notFound.js';
 import { apiRateLimit, checkoutRateLimit, adminRateLimit } from '../middleware/rateLimit.js';
@@ -58,6 +59,7 @@ export function createApp() {
     app.use('/api/cart', cartRouter);
     app.use('/api/orders', ordersRouter);
     app.use('/api/products', productsRouter);
+    app.use('/api/wishlist', wishlistRouter);
     app.use('/api', contentRouter);
 
     app.use('/api/checkout', checkoutRateLimit);

@@ -33,7 +33,11 @@ const envSchema = z.object({
     JWT_ISSUER: z.string().min(1).default('nawabi-aroma'),
     JWT_AUDIENCE: z.string().min(1).default('nawabi-admin'),
     RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    EMAIL_FROM_SUPPORT: z.string().optional(),
+    EMAIL_FROM_SYSTEM: z.string().optional(),
     ORDER_EMAIL_FROM: z.string().optional(),
+    BASE_URL: z.string().url().default('https://nawabiaroma.com'),
     AWS_REGION: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
@@ -83,8 +87,8 @@ if (parsed.data.NODE_ENV === 'production' && parsed.data.JWT_SECRET.length < PRO
     throw new Error(`JWT_SECRET must be at least ${PRODUCTION_MIN_JWT_SECRET_LENGTH} characters in production.`);
 }
 
-if (parsed.data.RESEND_API_KEY && !parsed.data.ORDER_EMAIL_FROM) {
-    throw new Error('ORDER_EMAIL_FROM must be configured when RESEND_API_KEY is set.');
+if (parsed.data.RESEND_API_KEY && (!parsed.data.ORDER_EMAIL_FROM || !parsed.data.EMAIL_FROM || !parsed.data.EMAIL_FROM_SUPPORT || !parsed.data.EMAIL_FROM_SYSTEM)) {
+    throw new Error('All specialized EMAIL_FROM variables must be configured when RESEND_API_KEY is set.');
 }
 
 if (hasAnyStorageConfig && !hasCompleteStorageConfig) {
@@ -100,8 +104,8 @@ if (
     throw new Error('Razorpay must be fully configured in production.');
 }
 
-if (parsed.data.NODE_ENV === 'production' && (!parsed.data.RESEND_API_KEY || !parsed.data.ORDER_EMAIL_FROM)) {
-    throw new Error('Resend email delivery must be configured in production.');
+if (parsed.data.NODE_ENV === 'production' && (!parsed.data.RESEND_API_KEY || !parsed.data.ORDER_EMAIL_FROM || !parsed.data.EMAIL_FROM || !parsed.data.EMAIL_FROM_SUPPORT || !parsed.data.EMAIL_FROM_SYSTEM)) {
+    throw new Error('Resend email delivery and all specialized email addresses must be configured in production.');
 }
 
 export const env = {

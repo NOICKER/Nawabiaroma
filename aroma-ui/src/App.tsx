@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { CustomerRoute } from './components/CustomerRoute';
 import { Footer } from './components/Footer';
@@ -9,7 +9,8 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminRoute } from './components/admin/AdminRoute';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { CartProvider } from './context/CartContext';
-import { CustomerAuthProvider } from './context/CustomerAuthContext';
+import { CustomerAuthProvider, useCustomerAuth } from './context/CustomerAuthContext';
+import { WishlistProvider } from './context/WishlistContext';
 import { initializeAnalytics, isStorefrontPath, trackAnalyticsPageView } from './lib/analytics.ts';
 import { readCookieConsent, saveCookieConsent, type CookieConsentStatus } from './lib/cookieConsent.ts';
 import { About } from './pages/About';
@@ -27,6 +28,7 @@ import { Privacy } from './pages/Privacy';
 import { ProductDetail } from './pages/ProductDetail';
 import { Shop } from './pages/Shop';
 import { Terms } from './pages/Terms';
+import { Wishlist } from './pages/Wishlist';
 import { AdminArticles } from './pages/admin/AdminArticles';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminLogin } from './pages/admin/AdminLogin';
@@ -44,6 +46,23 @@ function ScrollToTop() {
     }, [pathname]);
 
     return null;
+}
+
+function WishlistRoute() {
+    const { isLoggedIn, openAuthModal } = useCustomerAuth();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (!isLoggedIn) {
+            openAuthModal();
+        }
+    }, [isLoggedIn, openAuthModal]);
+
+    if (!isLoggedIn) {
+        return <Navigate replace state={{ next: location.pathname }} to="/shop" />;
+    }
+
+    return <Outlet />;
 }
 
 function AppContent() {
@@ -76,6 +95,9 @@ function AppContent() {
                 <Route path="/product/:slug" element={<ProductDetail />} />
                 <Route path="/account/login" element={<CustomerLogin />} />
                 <Route path="/account/register" element={<CustomerRegister />} />
+                <Route element={<WishlistRoute />}>
+                    <Route path="/wishlist" element={<Wishlist />} />
+                </Route>
                 <Route element={<CustomerRoute />}>
                     <Route path="/checkout" element={<Checkout />} />
                     <Route path="/order-confirmation" element={<OrderConfirmation />} />
@@ -117,15 +139,20 @@ function AppContent() {
     );
 }
 
+import { AuthModal } from './components/AuthModal';
+
 function App() {
     return (
         <AdminAuthProvider>
             <CustomerAuthProvider>
-                <CartProvider>
-                    <Router>
-                        <AppContent />
-                    </Router>
-                </CartProvider>
+                <WishlistProvider>
+                    <CartProvider>
+                        <Router>
+                            <AppContent />
+                            <AuthModal />
+                        </Router>
+                    </CartProvider>
+                </WishlistProvider>
             </CustomerAuthProvider>
         </AdminAuthProvider>
     );
