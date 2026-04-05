@@ -1,12 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Nawabi Aroma favicon</title>
   <rect width="64" height="64" rx="18" fill="#0A0A0A" />
   <path
-    d="M19 44V20l13 16 13-16v24"
+    d="M16 46V18L31 44V18"
     fill="none"
     stroke="#F5F1EA"
     stroke-linecap="round"
     stroke-linejoin="round"
-    stroke-width="5"
+    stroke-width="4.4"
   />
-  <circle cx="48" cy="16" r="4" fill="#1289A1" />
+  <path
+    d="M30 46L44 18L58 46"
+    fill="none"
+    stroke="#F5F1EA"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="4.4"
+  />
+  <path
+    d="M37 34H51"
+    fill="none"
+    stroke="#F5F1EA"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="4.4"
+  />
 </svg>

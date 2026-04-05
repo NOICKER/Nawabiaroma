@@ -94,8 +94,15 @@ export function Home() {
                         </div>
                     </div>
 
-                    <div className="absolute bottom-10 left-0 z-20 flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-gradient-to-tr from-white/40 to-transparent backdrop-blur-sm transition-transform duration-1000 ease-out group-hover/hero:-translate-x-6 group-hover/hero:-translate-y-2 sm:h-24 sm:w-24 md:-left-12 md:h-32 md:w-32 dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md dark:shadow-2xl">
-                        <div className="hidden h-1/2 w-1/2 rounded-full bg-white/10 blur-xl dark:block"></div>
+                    <div className="absolute bottom-10 left-0 z-20 transition-transform duration-1000 ease-out group-hover/hero:-translate-x-6 group-hover/hero:-translate-y-2 md:-left-12">
+                        <div className="glass-panel flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/90 p-2 shadow-[0_18px_40px_rgba(0,0,0,0.4)] sm:h-24 sm:w-24 md:h-32 md:w-32 md:p-3">
+                            <img
+                                alt="Nawabi Aroma seal logo"
+                                className="h-full w-full rounded-full object-cover opacity-95"
+                                decoding="async"
+                                src="/brand/nawabi-seal-1024.png"
+                            />
+                        </div>
                     </div>
                 </div>
 

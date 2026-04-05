@@ -5,8 +5,17 @@ export function Footer() {
         <footer className="border-t border-[var(--glass-border)] bg-[var(--color-canvas)]/70">
             <div className="mx-auto grid max-w-[1400px] gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr_1fr_1fr] md:px-8 md:py-20">
                 <div className="space-y-4">
-                    <Link className="inline-flex text-2xl font-bold leading-none tracking-[0.3em]" to="/">
-                        NAWABI
+                    <Link className="inline-flex flex-col items-start gap-4" to="/">
+                        <img
+                            alt="Nawabi Aroma seal logo"
+                            className="h-20 w-20 rounded-full object-cover shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+                            decoding="async"
+                            loading="lazy"
+                            src="/brand/nawabi-seal-512.png"
+                        />
+                        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                            Nawabi Aroma
+                        </span>
                     </Link>
                     <p className="max-w-md font-light leading-relaxed text-[var(--text-muted)]">
                         Modern perfume composed with memory, restraint, and a quiet sense of ceremony.
